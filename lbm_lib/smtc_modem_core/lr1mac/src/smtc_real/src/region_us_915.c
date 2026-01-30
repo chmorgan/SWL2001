@@ -404,6 +404,7 @@ status_lorawan_t region_us_915_get_next_channel( smtc_real_t* real, uint8_t tx_d
     if( *active_channel_nb == 0 )
     {
         SMTC_MODEM_HAL_PANIC( "NO CHANNELS AVAILABLE\n" );
+        return ERRORLORAWAN;
     }
 
     // Select a channel in array
