@@ -97,6 +97,13 @@ typedef enum ch_mask_after_join_e
  * @param real
  */
 static void region_us_915_channel_mask_set_after_join( smtc_real_t* real );
+/* TRACE_ERROR can be compiled out when MODEM_HAL_DBG_TRACE is disabled; keep debug always visible */
+#if ( MODEM_HAL_DBG_TRACE )
+#define US915_DUMP_CHANNEL_TRACE_ERROR( ... ) SMTC_MODEM_HAL_TRACE_ERROR( __VA_ARGS__ )
+#else
+#define US915_DUMP_CHANNEL_TRACE_ERROR( ... ) smtc_modem_hal_print_trace( __VA_ARGS__ )
+#endif
+static void region_us_915_dump_no_channels_debug( smtc_real_t* real, uint8_t tx_data_rate );
 
 /*
  * -----------------------------------------------------------------------------
@@ -347,6 +354,68 @@ status_lorawan_t region_us_915_get_join_next_channel( smtc_real_t* real, uint8_t
     return OKLORAWAN;
 }
 
+static void region_us_915_dump_no_channels_debug( smtc_real_t* real, uint8_t tx_data_rate )
+{
+    uint8_t snapshot_eligible_channels = 0;
+    uint8_t enabled_mask_channels    = 0;
+    uint8_t dr_compatible_channels   = 0;
+    uint8_t fully_eligible_channels  = 0;
+
+    US915_DUMP_CHANNEL_TRACE_ERROR( "TX data rate: %u\n", tx_data_rate );
+    US915_DUMP_CHANNEL_TRACE_ERROR( "first_ch_mask_received: %u\n", first_ch_mask_received );
+    US915_DUMP_CHANNEL_TRACE_ERROR( "tx_channel_idx: %u\n", tx_channel_idx );
+    US915_DUMP_CHANNEL_TRACE_ERROR( "number_of_channel_bank: %u\n", real_const.const_number_of_channel_bank );
+
+    US915_DUMP_CHANNEL_TRACE_ERROR( "snapshot_channel_tx_mask:\n" );
+    for( uint8_t i = 0; i < real_const.const_number_of_channel_bank; i++ )
+    {
+        US915_DUMP_CHANNEL_TRACE_ERROR( " %u:0x%02X", i, snapshot_channel_tx_mask[i] );
+    }
+    US915_DUMP_CHANNEL_TRACE_ERROR( "\n" );
+
+    US915_DUMP_CHANNEL_TRACE_ERROR( "channel_index_enabled:\n" );
+    for( uint8_t i = 0; i < real_const.const_number_of_channel_bank; i++ )
+    {
+        US915_DUMP_CHANNEL_TRACE_ERROR( " %u:0x%02X", i, channel_index_enabled[i] );
+    }
+    US915_DUMP_CHANNEL_TRACE_ERROR( "\n" );
+
+    for( uint8_t i = 0; i < NUMBER_OF_TX_CHANNEL_US_915; i++ )
+    {
+        uint8_t  snapshot_elig = SMTC_GET_BIT8( snapshot_channel_tx_mask, i );
+        uint8_t  enabled_elig  = SMTC_GET_BIT8( channel_index_enabled, i );
+        uint16_t dr_compat     = SMTC_GET_BIT16( &dr_bitfield_tx_channel[i], tx_data_rate );
+        uint16_t dr_mask       = dr_bitfield_tx_channel[i];
+        uint32_t tx_freq       = region_us_915_get_tx_frequency_channel( real, i );
+        uint32_t rx1_freq      = region_us_915_get_rx1_frequency_channel( real, i );
+
+        if( snapshot_elig == CHANNEL_ENABLED )
+        {
+            snapshot_eligible_channels++;
+        }
+        if( enabled_elig == CHANNEL_ENABLED )
+        {
+            enabled_mask_channels++;
+        }
+        if( dr_compat == 1 )
+        {
+            dr_compatible_channels++;
+        }
+        if( ( snapshot_elig == CHANNEL_ENABLED ) && ( enabled_elig == CHANNEL_ENABLED ) && ( dr_compat == 1 ) )
+        {
+            fully_eligible_channels++;
+        }
+
+        US915_DUMP_CHANNEL_TRACE_ERROR(
+            "ch=%u snapshot_elig=%u enabled=%u dr_compat=%u dr_mask=0x%04X tx_freq=%u rx1_freq=%u\n", i, snapshot_elig,
+            enabled_elig, dr_compat, dr_mask, tx_freq, rx1_freq );
+    }
+
+    US915_DUMP_CHANNEL_TRACE_ERROR( "summary: snapshot_enabled=%u enabled_mask=%u dr_compatible=%u fully_eligible=%u\n",
+                                    snapshot_eligible_channels, enabled_mask_channels, dr_compatible_channels,
+                                    fully_eligible_channels );
+}
+
 status_lorawan_t region_us_915_get_next_channel( smtc_real_t* real, uint8_t tx_data_rate, uint32_t* out_tx_frequency,
                                                  uint32_t* out_rx1_frequency, uint8_t* active_channel_nb )
 {
@@ -400,6 +469,7 @@ status_lorawan_t region_us_915_get_next_channel( smtc_real_t* real, uint8_t tx_d
     }
     if( *active_channel_nb == 0 )
     {
+        region_us_915_dump_no_channels_debug( real, tx_data_rate );
         SMTC_MODEM_HAL_PANIC( "NO CHANNELS AVAILABLE\n" );
         return ERRORLORAWAN;
     }
