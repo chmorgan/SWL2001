@@ -1176,6 +1176,12 @@ void lr1_stack_mac_update( lr1_stack_mac_t* lr1_mac )
             lr1_mac->next_time_to_join_seconds = current_time_s + ( lr1_stack_toa_get( lr1_mac ) ) / 10;
             // ts=cur_ts+(toa_s*100) = cur_ts + (toa_ms / 1000) * 100 = cur_ts + toa_ms/10
         }
+#if defined(LORAWAN_MAX_JOIN_BACKOFF_LIMIT_SECONDS)
+        else
+        {
+            lr1_mac->next_time_to_join_seconds = current_time_s + LORAWAN_MAX_JOIN_BACKOFF_LIMIT_SECONDS;
+        }
+#else
         else if( current_time_s + ( lr1_stack_toa_get( lr1_mac ) ) < ( lr1_mac->first_join_timestamp + 36000 + 3600 ) )
         {
             // during the 10 hours following first hour after first join try => duty cycle of 1/1000 ie 36s over 10
@@ -1192,6 +1198,7 @@ void lr1_stack_mac_update( lr1_stack_mac_t* lr1_mac )
             lr1_mac->adr_mode_select = JOIN_DR_DISTRIBUTION_LONG_TERM;
             // ts=cur_ts+(toa_s*10000) = cur_ts + (toa_ms / 1000) * 10000 = cur_ts + toa_ms*10
         }
+#endif
 
         // Now join status can be set as not joined
         lr1_mac->join_status = NOT_JOINED;
