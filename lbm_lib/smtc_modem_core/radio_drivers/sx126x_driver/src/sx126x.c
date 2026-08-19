@@ -218,7 +218,7 @@ typedef struct
     uint8_t  param;
 } gfsk_bw_t;
 
-gfsk_bw_t gfsk_bw[] = {
+static const gfsk_bw_t gfsk_bw[] = {
     { 4800, SX126X_GFSK_BW_4800 },     { 5800, SX126X_GFSK_BW_5800 },     { 7300, SX126X_GFSK_BW_7300 },
     { 9700, SX126X_GFSK_BW_9700 },     { 11700, SX126X_GFSK_BW_11700 },   { 14600, SX126X_GFSK_BW_14600 },
     { 19500, SX126X_GFSK_BW_19500 },   { 23400, SX126X_GFSK_BW_23400 },   { 29300, SX126X_GFSK_BW_29300 },
