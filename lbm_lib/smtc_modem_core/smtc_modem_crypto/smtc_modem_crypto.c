@@ -106,7 +106,7 @@ typedef struct smtc_crypto_key_addr_s
 /*
  * Key-Address list
  */
-static smtc_crypto_key_addr_t smtc_crypto_key_addr_list[NUM_OF_MC_SEC_CTX] = {
+static const smtc_crypto_key_addr_t smtc_crypto_key_addr_list[NUM_OF_MC_SEC_CTX] = {
     { SMTC_MODEM_CRYPTO_MULTICAST_0_ADDR, SMTC_SE_MC_APP_S_KEY_0, SMTC_SE_MC_NWK_S_KEY_0, SMTC_SE_MC_KEY_0 },
     { SMTC_MODEM_CRYPTO_MULTICAST_1_ADDR, SMTC_SE_MC_APP_S_KEY_1, SMTC_SE_MC_NWK_S_KEY_1, SMTC_SE_MC_KEY_1 },
     { SMTC_MODEM_CRYPTO_MULTICAST_2_ADDR, SMTC_SE_MC_APP_S_KEY_2, SMTC_SE_MC_NWK_S_KEY_2, SMTC_SE_MC_KEY_2 },
@@ -182,7 +182,7 @@ static smtc_modem_crypto_return_code_t derive_multicast_key_encryption_key( uint
  * @return smtc_modem_crypto_return_code_t
  */
 static smtc_modem_crypto_return_code_t get_key_addr_item( smtc_modem_crypto_addr_id_t addr_id,
-                                                          smtc_crypto_key_addr_t**    item );
+                                                          const smtc_crypto_key_addr_t** item );
 
 /*
  *-----------------------------------------------------------------------------------
@@ -390,7 +390,7 @@ smtc_modem_crypto_return_code_t smtc_modem_crypto_derive_multicast_session_keys(
     smtc_modem_crypto_return_code_t rc = SMTC_MODEM_CRYPTO_RC_ERROR;
 
     // Determine current security context
-    smtc_crypto_key_addr_t* cur_item;
+    const smtc_crypto_key_addr_t* cur_item;
     rc = get_key_addr_item( addr_id, &cur_item );
     if( rc != SMTC_MODEM_CRYPTO_RC_SUCCESS )
     {
@@ -644,7 +644,7 @@ static smtc_modem_crypto_return_code_t derive_multicast_key_encryption_key( uint
 }
 
 static smtc_modem_crypto_return_code_t get_key_addr_item( smtc_modem_crypto_addr_id_t addr_id,
-                                                          smtc_crypto_key_addr_t**    item )
+                                                          const smtc_crypto_key_addr_t** item )
 {
     for( uint8_t i = 0; i < NUM_OF_MC_SEC_CTX; i++ )
     {
