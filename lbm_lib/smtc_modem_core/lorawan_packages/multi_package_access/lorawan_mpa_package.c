@@ -239,7 +239,7 @@ typedef void ( *ptr_func_service_get_id )( uint8_t*, uint8_t*, uint8_t* );
 /**
  * @brief Get the Service ID, version and FPort for each package
  */
-static ptr_func_service_get_id mpa_service_get_id[MPA_NB_PACKAGES] = {
+static const ptr_func_service_get_id mpa_service_get_id[MPA_NB_PACKAGES] = {
     lorawan_mpa_package_service_get_id,
     lorawan_alcsync_service_get_id,
     lorawan_remote_multicast_setup_package_service_get_id,
@@ -265,7 +265,7 @@ typedef bool ( *ptr_func_mpa_injector )( uint8_t stack_id, uint8_t* payload_in, 
                                          receive_win_t rx_window, uint8_t* payload_out, uint8_t* payload_out_length,
                                          const uint8_t max_payload_out_length, uint32_t rx_timestamp_ms );
 
-static ptr_func_mpa_injector mpa_service_push_payload_to_targeted_package[MPA_NB_PACKAGES] = {
+static const ptr_func_mpa_injector mpa_service_push_payload_to_targeted_package[MPA_NB_PACKAGES] = {
     mpa_package_parser_internal,                         // set parser func
     lorawan_alcsync_mpa_injector,                        // alc sync
     lorawan_remote_multicast_setup_mpa_injector,         // remote multicast
