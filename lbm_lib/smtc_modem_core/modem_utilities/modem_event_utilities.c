@@ -40,11 +40,13 @@
 #include <stdbool.h>  // bool type
 
 #include "modem_event_utilities.h"
+#include "esp_attr.h"
 #include "smtc_modem_hal_dbg_trace.h"
 /*
  * -----------------------------------------------------------------------------
  * --- PRIVATE CONSTANTS -------------------------------------------------------
  */
+EXT_RAM_BSS_ATTR
 struct
 {
     uint8_t asynchronous_msgnumber;
