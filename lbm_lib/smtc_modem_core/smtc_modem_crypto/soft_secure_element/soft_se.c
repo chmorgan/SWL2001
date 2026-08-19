@@ -40,6 +40,7 @@
 #include <stdint.h>   // C99 types
 #include <stdbool.h>  // bool type
 
+#include "esp_attr.h"
 #include "smtc_secure_element.h"
 
 #include "aes.h"
@@ -352,6 +353,7 @@ typedef struct soft_se_context_nvm_s
  * --- PRIVATE VARIABLES -------------------------------------------------------
  */
 
+EXT_RAM_BSS_ATTR
 static soft_se_data_t soft_se_data[NUMBER_OF_STACKS] = { 0 };
 
 /*
