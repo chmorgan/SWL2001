@@ -40,6 +40,7 @@
 #include <stdint.h>   // C99 types
 #include <stdbool.h>  // bool type
 
+#include "esp_attr.h"
 #include "smtc_modem_api.h"
 #include "smtc_modem_test_api.h"
 #include "lorawan_management_defs.h"
@@ -187,6 +188,7 @@ typedef struct modem_key_ctx_s
  * --- PRIVATE VARIABLES -------------------------------------------------------
  */
 
+EXT_RAM_BSS_ATTR
 radio_planner_t modem_radio_planner;
 
 #if defined( SX128X )
