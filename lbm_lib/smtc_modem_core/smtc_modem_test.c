@@ -109,6 +109,7 @@ EXT_RAM_BSS_ATTR
 modem_test_context_t modem_test_context;
 
 static rp_task_t         rp_task;
+EXT_RAM_BSS_ATTR
 static rp_radio_params_t rp_radio_params;
 /*
  * -----------------------------------------------------------------------------
