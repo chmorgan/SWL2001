@@ -40,6 +40,7 @@
 #include <stdint.h>   // C99 types
 #include <stdbool.h>  // bool type
 
+#include "esp_attr.h"
 #include "smtc_modem_hal.h"
 #include "smtc_modem_hal_dbg_trace.h"
 
@@ -65,6 +66,7 @@
 #include "smtc_modem_crypto.h"
 #include "lorawan_api.h"
 
+EXT_RAM_BSS_ATTR
 static struct
 {
     lr1_stack_mac_t lr1_mac_obj[NUMBER_OF_STACKS];
