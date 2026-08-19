@@ -40,6 +40,7 @@
 #include <stdint.h>   // C99 types
 #include <stdbool.h>  // bool type
 
+#include "esp_attr.h"
 #include "smtc_modem_test_api.h"
 #include "smtc_modem_api.h"
 
@@ -104,7 +105,7 @@ static const uint8_t sync_word_lr_fhss[] = { 0x2C, 0x0F, 0x79, 0x95 };
  * -----------------------------------------------------------------------------
  * --- PRIVATE VARIABLES -------------------------------------------------------
  */
-
+EXT_RAM_BSS_ATTR
 modem_test_context_t modem_test_context;
 
 static rp_task_t         rp_task;
