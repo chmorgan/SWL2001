@@ -251,7 +251,7 @@ static status_lorawan_t tpm_get_next_channel( void );
 static void             tpm_abort( void );
 static void             update_tpm_target_time( void );
 static uint32_t         update_add_delay_ms( void );
-static status_lorawan_t ( *launch_tpm_func[TPM_NUMBER_OF_STATE] )( void ) = {
+static status_lorawan_t ( *const launch_tpm_func[TPM_NUMBER_OF_STATE] )( void ) = {
     [TPM_STATE_TX_LORA]     = &manage_tx_lora_state,
     [TPM_STATE_NWK_TX_LORA] = &manage_tx_nwk_lora_state,
     [TPM_STATE_LBT]         = &manage_lbt_state,
