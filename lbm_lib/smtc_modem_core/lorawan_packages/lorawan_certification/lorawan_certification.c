@@ -40,6 +40,7 @@
 #include <stdint.h>   // C99 types
 #include <stdbool.h>  // bool type
 
+#include "esp_attr.h"
 #include "modem_supervisor_light.h"
 #include "lorawan_api.h"
 #include "smtc_modem_hal.h"
@@ -116,6 +117,7 @@ typedef struct certif_service_ctx_s
     lorawan_certification_t lorawan_certification_obj[NUMBER_OF_CERTIF_OBJ];
 } certif_service_ctx_t;
 
+EXT_RAM_BSS_ATTR
 static certif_service_ctx_t certif_service_ctx;
 
 #define timestamp_launch_ms certif_service_ctx.timestamp_launch_ms
