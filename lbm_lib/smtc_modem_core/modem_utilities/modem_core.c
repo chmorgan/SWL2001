@@ -41,6 +41,7 @@
 #include <stdbool.h>  // bool type
 
 #include "modem_core.h"
+#include "esp_attr.h"
 #include "modem_event_utilities.h"
 
 #include "smtc_modem_hal_dbg_trace.h"
@@ -108,6 +109,7 @@ typedef struct modem_ctx_s
  * -----------------------------------------------------------------------------
  * --- PRIVATE VARIABLES -------------------------------------------------------
  */
+EXT_RAM_BSS_ATTR
 struct
 {
     modem_downlink_msg_t modem_dwn_pkt;
