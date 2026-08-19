@@ -38,6 +38,7 @@
  */
 #include <stddef.h>
 #include "sx126x.h"
+#include "esp_attr.h"
 #include "sx126x_hal.h"
 #include "sx126x_regs.h"
 
@@ -218,6 +219,7 @@ typedef struct
     uint8_t  param;
 } gfsk_bw_t;
 
+EXT_RAM_BSS_ATTR
 gfsk_bw_t gfsk_bw[] = {
     { 4800, SX126X_GFSK_BW_4800 },     { 5800, SX126X_GFSK_BW_5800 },     { 7300, SX126X_GFSK_BW_7300 },
     { 9700, SX126X_GFSK_BW_9700 },     { 11700, SX126X_GFSK_BW_11700 },   { 14600, SX126X_GFSK_BW_14600 },
