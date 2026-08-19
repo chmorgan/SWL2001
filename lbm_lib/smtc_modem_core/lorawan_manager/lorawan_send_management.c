@@ -40,6 +40,7 @@
 #include <stdint.h>   // C99 types
 #include <stdbool.h>  // bool type
 #include "lorawan_send_management.h"
+#include "esp_attr.h"
 #include "modem_supervisor_light.h"
 #include "smtc_modem_api.h"
 #include "smtc_modem_hal.h"
@@ -94,6 +95,7 @@ typedef struct lorawan_send_management_s
 
 } lorawan_send_management_t;
 
+EXT_RAM_BSS_ATTR
 static lorawan_send_management_t lorawan_send_management_obj[NUMBER_OF_STACKS];
 
 /*
