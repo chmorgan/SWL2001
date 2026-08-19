@@ -489,7 +489,7 @@ uint16_t lr_fhss_build_frame( const lr_fhss_v1_params_t* params, uint16_t hop_se
     {
         // this assumes first matrix values are always the same, which is the case
         uint32_t matrix_index = 0;
-        uint8_t  matrix[15]   = { 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0 };
+        static const uint8_t matrix[15] = { 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0 };
         uint8_t  matrix_len   = 0;
         switch( params->cr )
         {
