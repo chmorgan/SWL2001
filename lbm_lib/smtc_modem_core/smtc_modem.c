@@ -194,7 +194,8 @@ radio_planner_t modem_radio_planner;
 #if defined( SX128X )
 ralf_t modem_radio = RALF_SX128X_INSTANTIATE( NULL );
 #elif defined( SX126X )
-ralf_t modem_radio = RALF_SX126X_INSTANTIATE( NULL );
+EXT_RAM_NOINIT_ATTR
+ralf_t modem_radio;
 #elif defined( LR11XX )
 ralf_t modem_radio = RALF_LR11XX_INSTANTIATE( NULL );
 #elif defined( LR20XX )
@@ -252,6 +253,10 @@ static void modem_load_appkey_context( void );
 
 void smtc_modem_init( void ( *callback_event )( void ) )
 {
+#if defined( SX126X )
+    modem_radio = ( ralf_t ) RALF_SX126X_INSTANTIATE( NULL );
+#endif
+
     SMTC_MODEM_HAL_TRACE_INFO( "Modem Initialization\n" );
 
     // init radio and put it in sleep mode
