@@ -39,6 +39,7 @@
 
 #include <stdint.h>   // C99 types
 #include <stdbool.h>  // bool type
+#include "esp_attr.h"
 #include "modem_supervisor_light.h"
 #include "lorawan_send_management.h"
 #include "smtc_modem_hal_dbg_trace.h"
@@ -137,6 +138,7 @@ typedef enum tx_protocol_manager_state
  * --- PRIVATE VARIABLES -------------------------------------------------------
  */
 #define NB_REQUEST_ACCEPTED 5
+EXT_RAM_BSS_ATTR
 static struct
 {
     tx_protocol_manager_tx_type_t current_tpm_request_type;
