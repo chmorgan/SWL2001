@@ -151,7 +151,7 @@ static wifi_scan_result_t wifi_results = { 0 };
 /*!
  * @brief WiFi scan settings
  */
-static wifi_settings_t wifi_settings[] = { { .scan_mode           = LR11XX_WIFI_SCAN_MODE_BEACON_AND_PKT,
+static const wifi_settings_t wifi_settings[] = { { .scan_mode           = LR11XX_WIFI_SCAN_MODE_BEACON_AND_PKT,
                                              .channels            = 0x1FFF,
                                              .types               = LR11XX_WIFI_TYPE_SCAN_B_G_N,
                                              .max_results         = WIFI_MAX_BASIC_RESULTS,
