@@ -194,6 +194,7 @@ radio_planner_t modem_radio_planner;
 #if defined( SX128X )
 ralf_t modem_radio = RALF_SX128X_INSTANTIATE( NULL );
 #elif defined( SX126X )
+EXT_RAM_BSS_ATTR
 ralf_t modem_radio = RALF_SX126X_INSTANTIATE( NULL );
 #elif defined( LR11XX )
 ralf_t modem_radio = RALF_LR11XX_INSTANTIATE( NULL );
