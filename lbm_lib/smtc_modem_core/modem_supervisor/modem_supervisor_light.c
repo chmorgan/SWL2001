@@ -41,6 +41,7 @@
 #include <stdbool.h>  // bool type
 
 #include "modem_supervisor_light.h"
+#include "esp_attr.h"
 #include "lorawan_send_management.h"
 #include "smtc_modem_hal_dbg_trace.h"
 #include "lorawan_certification.h"
@@ -104,6 +105,7 @@
  * --- PRIVATE VARIABLES -------------------------------------------------------
  */
 
+EXT_RAM_BSS_ATTR
 struct
 {
     stask_manager task_manager;
