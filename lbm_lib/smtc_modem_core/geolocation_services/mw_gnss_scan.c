@@ -180,7 +180,7 @@ static navgroup_t navgroup;
 /*!
  * @brief Pre-defined scan modes to be selected by the user depending on the use case (STATIC, MOBILE...)
  */
-static gnss_mw_mode_desc_t modes[__SMTC_MODEM_GNSS_MODE__SIZE] = {
+static const gnss_mw_mode_desc_t modes[__SMTC_MODEM_GNSS_MODE__SIZE] = {
     { .scan_group_delay = 15, .scan_group_size = 2 }, /* SMTC_MODEM_GNSS_MODE_STATIC */
     { .scan_group_delay = 0, .scan_group_size = 2 },  /* SMTC_MODEM_GNSS_MODE_MOBILE */
 };
