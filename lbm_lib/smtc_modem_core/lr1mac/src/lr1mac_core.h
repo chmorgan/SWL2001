@@ -444,6 +444,11 @@ bool lr1mac_core_available_link_adr_get( lr1_stack_mac_t* lr1_mac_obj );
 bool lr1mac_core_join_duty_cycle_backoff_bypass_get( lr1_stack_mac_t* lr1_mac_obj );
 
 /**
+ * @brief Get the active total join retry delay limit, or zero when the policy is disabled.
+ */
+uint32_t lr1mac_core_join_retry_max_delay_seconds_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t current_time_s );
+
+/**
  * @brief Bypass join duty cycle backoff
  *
  * @param lr1_mac_obj

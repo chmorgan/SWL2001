@@ -47,6 +47,7 @@
 #include "smtc_real_defs_str.h"
 
 #include "lr1mac_config.h"
+#include "lorawan_join_retry_policy.h"
 
 #if defined( ADD_RELAY_TX )
 #include "relay_tx_api.h"
@@ -898,6 +899,19 @@ uint32_t lr1mac_core_fcnt_up_get( lr1_stack_mac_t* lr1_mac_obj )
 uint32_t lr1mac_core_next_join_time_second_get( lr1_stack_mac_t* lr1_mac_obj )
 {
     return ( lr1_mac_obj->next_time_to_join_seconds );
+}
+
+uint32_t lr1mac_core_join_retry_max_delay_seconds_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t current_time_s )
+{
+#if LORAWAN_JOIN_RETRY_POLICY_ENABLED
+    return lorawan_join_retry_active_limit_seconds(
+        LORAWAN_JOIN_RETRY_MAX_DELAY_SECONDS, LORAWAN_JOIN_FIRST_HOUR_MAX_DELAY_SECONDS,
+        lr1_mac_obj->first_join_timestamp, current_time_s, lr1_mac_obj->retry_join_cpt == 0 );
+#else
+    ( void ) lr1_mac_obj;
+    ( void ) current_time_s;
+    return 0U;
+#endif
 }
 
 smtc_real_region_types_t lr1mac_core_get_region( lr1_stack_mac_t* lr1_mac_obj )

@@ -437,6 +437,12 @@ uint32_t lorawan_api_next_join_time_second_get( uint8_t stack_id )
     return lr1mac_core_next_join_time_second_get( &lr1_mac_obj[stack_id] );
 }
 
+uint32_t lorawan_api_join_retry_max_delay_seconds_get( uint8_t stack_id, uint32_t current_time_s )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    return lr1mac_core_join_retry_max_delay_seconds_get( &lr1_mac_obj[stack_id], current_time_s );
+}
+
 bool lorawan_api_is_dtc_supported( uint8_t stack_id )
 {
     PANIC_IF_STACK_ID_TOO_HIGH( stack_id );

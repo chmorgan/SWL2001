@@ -49,6 +49,7 @@
 #include "smtc_modem_hal.h"
 #include "lr1mac_config.h"
 #include "smtc_modem_crypto.h"
+#include "lorawan_join_retry_policy.h"
 
 #if defined( ADD_RELAY_RX )
 #include "relay_rx_mac_parser.h"
@@ -1174,19 +1175,28 @@ void lr1_stack_mac_update( lr1_stack_mac_t* lr1_mac )
         lr1_mac->adr_mode_select = JOIN_DR_DISTRIBUTION;
         lr1_mac->retry_join_cpt++;
 
+#if LORAWAN_JOIN_RETRY_POLICY_ENABLED
+        const uint32_t elapsed_join_s = current_time_s - lr1_mac->first_join_timestamp;
+        if( elapsed_join_s < LORAWAN_JOIN_RETRY_FIRST_HOUR_SECONDS )
+#else
         if( current_time_s + ( ( lr1_stack_toa_get( lr1_mac ) ) / 10 ) < ( lr1_mac->first_join_timestamp + 3600 ) )
+#endif
         {
             // during first hour after first join try => duty cycle of 1/100 ie 36s over 1 hour
             lr1_mac->next_time_to_join_seconds = current_time_s + ( lr1_stack_toa_get( lr1_mac ) ) / 10;
             // ts=cur_ts+(toa_s*100) = cur_ts + (toa_ms / 1000) * 100 = cur_ts + toa_ms/10
         }
-#if defined(LORAWAN_MAX_JOIN_BACKOFF_LIMIT_SECONDS)
+#if defined( LORAWAN_MAX_JOIN_BACKOFF_LIMIT_SECONDS ) && !LORAWAN_JOIN_RETRY_POLICY_ENABLED
         else
         {
             lr1_mac->next_time_to_join_seconds = current_time_s + LORAWAN_MAX_JOIN_BACKOFF_LIMIT_SECONDS;
         }
 #else
+#if LORAWAN_JOIN_RETRY_POLICY_ENABLED
+        else if( elapsed_join_s < ( 11U * LORAWAN_JOIN_RETRY_FIRST_HOUR_SECONDS ) )
+#else
         else if( current_time_s + ( lr1_stack_toa_get( lr1_mac ) ) < ( lr1_mac->first_join_timestamp + 36000 + 3600 ) )
+#endif
         {
             // during the 10 hours following first hour after first join try => duty cycle of 1/1000 ie 36s over 10
             // hours
@@ -1199,9 +1209,19 @@ void lr1_stack_mac_update( lr1_stack_mac_t* lr1_mac )
             // Following the first 11 hours after first join try => duty cycle of 1/10000 ie 8.7s over 24 hours
             lr1_mac->next_time_to_join_seconds =
                 current_time_s + ( lr1_stack_toa_get( lr1_mac ) ) * 12;  // *12 to avoid to launch 6 JoinReq by 24h
+#if !LORAWAN_JOIN_RETRY_POLICY_ENABLED
             lr1_mac->adr_mode_select = JOIN_DR_DISTRIBUTION_LONG_TERM;
+#endif
             // ts=cur_ts+(toa_s*10000) = cur_ts + (toa_ms / 1000) * 10000 = cur_ts + toa_ms*10
         }
+#endif
+
+#if LORAWAN_JOIN_RETRY_POLICY_ENABLED
+        const uint32_t limit_s = lorawan_join_retry_active_limit_seconds(
+            LORAWAN_JOIN_RETRY_MAX_DELAY_SECONDS, LORAWAN_JOIN_FIRST_HOUR_MAX_DELAY_SECONDS,
+            lr1_mac->first_join_timestamp, current_time_s, false );
+        lr1_mac->next_time_to_join_seconds = current_time_s + lorawan_join_retry_cap_delay_seconds(
+            lr1_mac->next_time_to_join_seconds - current_time_s, limit_s );
 #endif
 
         // Now join status can be set as not joined
