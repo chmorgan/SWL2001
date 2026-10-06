@@ -147,6 +147,11 @@ void lr1_stack_mac_init( lr1_stack_mac_t* lr1_mac, lr1mac_activation_mode_t acti
 
 void lr1_stack_mac_session_init( lr1_stack_mac_t* lr1_mac )
 {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    memset( &lr1_mac->join_diagnostic, 0, sizeof( lr1_mac->join_diagnostic ) );
+    memset( &lr1_mac->linkadr_diagnostic, 0, sizeof( lr1_mac->linkadr_diagnostic ) );
+#endif
+
     lr1_mac->fcnt_dwn                            = ~0;
     lr1_mac->fcnt_up                             = 0;
     lr1_mac->retry_join_cpt                      = 0;
@@ -1534,13 +1539,30 @@ status_lorawan_t lr1_stack_mac_join_accept( lr1_stack_mac_t* lr1_mac )
     lr1_stack_mac_session_init( lr1_mac );
     smtc_real_config_session( lr1_mac->real );
 
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    lr1_mac->join_diagnostic.valid        = true;
+    lr1_mac->join_diagnostic.tx_data_rate = lr1_mac->tx_data_rate;
+    lr1_mac->join_diagnostic.tx_frequency = lr1_mac->tx_frequency;
+    lr1_mac->real->diagnostic.cflist_mask_applied = false;
+#endif
+
     bool is_valid_join_cflist = false;
 
     if( lr1_mac->rx_down_data.rx_payload_size > 13 )  // MIC has been removed (17 bytes - 4 bytes MIC)
     {                                                 // cflist are presents
         memcpy( lr1_mac->cf_list, &lr1_mac->rx_down_data.rx_payload[13], 16 );
 
+#if LORAWAN_FAILURE_DIAGNOSTICS
+        lr1_mac->join_diagnostic.cflist_present       = true;
+        lr1_mac->join_diagnostic.cflist_update_called = true;
+        status_lorawan_t cflist_update_status = smtc_real_update_cflist( lr1_mac->real, lr1_mac->cf_list );
+        lr1_mac->join_diagnostic.cflist_update_status = ( int8_t ) cflist_update_status;
+        lr1_mac->join_diagnostic.cflist_mask_applied  = lr1_mac->real->diagnostic.cflist_mask_applied;
+
+        if( cflist_update_status == OKLORAWAN )
+#else
         if( smtc_real_update_cflist( lr1_mac->real, lr1_mac->cf_list ) == OKLORAWAN )
+#endif
         {
             is_valid_join_cflist = true;
         }
@@ -1575,6 +1597,10 @@ status_lorawan_t lr1_stack_mac_join_accept( lr1_stack_mac_t* lr1_mac )
     }
 
     lr1_mac->join_status = JOINED;
+
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    lr1_mac->join_diagnostic.accepted = true;
+#endif
 
     SMTC_MODEM_HAL_TRACE_PRINTF( " DevAddr= %x\n", lr1_mac->dev_addr );
     SMTC_MODEM_HAL_TRACE_PRINTF( " MacRx1DataRateOffset= %d\n", lr1_mac->rx1_dr_offset );
@@ -1981,6 +2007,19 @@ static void link_adr_parser( lr1_stack_mac_t* lr1_mac )
                 lr1_mac->tx_data_rate_adr = dr_tmp;
             }
             lr1_mac->available_link_adr = true;
+
+#if LORAWAN_FAILURE_DIAGNOSTICS
+            lr1_mac->linkadr_diagnostic.valid       = true;
+            lr1_mac->linkadr_diagnostic.group_count = nb_link_adr_req;
+            lr1_mac->linkadr_diagnostic.status      = status_ans;
+            lr1_mac->linkadr_diagnostic.fcnt_down   = lr1_mac->fcnt_dwn;
+            memcpy( lr1_mac->linkadr_diagnostic.final_command,
+                    &lr1_mac->nwk_payload[lr1_mac->nwk_payload_index +
+                                         ( ( nb_link_adr_req - 1 ) * LINK_ADR_REQ_SIZE ) + 1],
+                    sizeof( lr1_mac->linkadr_diagnostic.final_command ) );
+            lr1_mac->real->diagnostic.mask_source = MASK_SOURCE_LINK_ADR;
+#endif
+
             SMTC_MODEM_HAL_TRACE_PRINTF( "MacTxDataRateAdr = %d\n", lr1_mac->tx_data_rate_adr );
             SMTC_MODEM_HAL_TRACE_PRINTF( "MacTxPower = %d\n", lr1_mac->tx_power );
             SMTC_MODEM_HAL_TRACE_PRINTF( "MacNbTrans = %d\n", lr1_mac->nb_trans );

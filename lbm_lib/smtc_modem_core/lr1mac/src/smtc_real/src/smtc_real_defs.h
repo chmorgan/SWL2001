@@ -83,6 +83,10 @@ extern "C" {
  * --- PUBLIC MACROS -----------------------------------------------------------
  */
 
+#ifndef LORAWAN_FAILURE_DIAGNOSTICS
+#define LORAWAN_FAILURE_DIAGNOSTICS 0
+#endif
+
 #if defined( RP2_101 )
 #define RP_VERSION_REVISION ( 2 )
 #define RP_VERSION_MAJOR ( 1 )
@@ -303,11 +307,41 @@ typedef struct smtc_real_const_s
     bool            const_uplink_dwell_time;
 } smtc_real_const_t;
 
+#if LORAWAN_FAILURE_DIAGNOSTICS
+typedef enum smtc_real_diagnostic_mask_source_e
+{
+    MASK_SOURCE_UNKNOWN = 0,
+    MASK_SOURCE_DEFAULT,
+    MASK_SOURCE_POST_JOIN,
+    MASK_SOURCE_CFLIST,
+    MASK_SOURCE_LINK_ADR,
+    MASK_SOURCE_OTHER
+} smtc_real_diagnostic_mask_source_t;
+
+typedef struct smtc_real_diagnostic_s
+{
+    bool          valid;
+    bool          fallback;
+    uint16_t      trials;
+    uint16_t      supported_dr_mask;
+    uint8_t       input_adr_dr;
+    uint8_t       output_dr;
+    dr_strategy_t strategy_before;
+    dr_strategy_t strategy_after;
+    bool          cflist_mask_applied;
+    uint8_t       mask_source;
+} smtc_real_diagnostic_t;
+#endif
+
 typedef struct smtc_real_s
 {
     smtc_real_region_types_t region_type;
     smtc_real_const_t        real_const;
     smtc_real_ctx_t          real_ctx;
+
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    smtc_real_diagnostic_t diagnostic;
+#endif
 
     union smtc_real_region_u
     {

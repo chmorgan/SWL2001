@@ -69,6 +69,30 @@ typedef struct lr1_stack_mac_down_data_s
     lr1mac_down_metadata_t rx_metadata;
     uint8_t                stack_id;
 } lr1_stack_mac_down_data_t;
+
+#if LORAWAN_FAILURE_DIAGNOSTICS
+typedef struct
+{
+    bool     valid;
+    bool     accepted;
+    uint8_t  tx_data_rate;
+    uint32_t tx_frequency;
+    bool     cflist_present;
+    bool     cflist_update_called;
+    int8_t   cflist_update_status;
+    bool     cflist_mask_applied;
+} lr1mac_join_diagnostic_t;
+
+typedef struct
+{
+    bool     valid;
+    uint8_t  group_count;
+    uint8_t  status;
+    uint8_t  final_command[4];
+    uint32_t fcnt_down;
+} lr1mac_linkadr_diagnostic_t;
+#endif
+
 typedef struct lr1_stack_mac_s
 {
     smtc_real_t* real;  // Region Abstraction Layer
@@ -150,6 +174,12 @@ typedef struct lr1_stack_mac_s
     uint16_t dev_nonce;
     uint8_t  join_nonce[6];  // Join_nonce + NetId
     uint8_t  cf_list[16];
+
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    // Runtime-only failure context; never serialized into the modem's saved context.
+    lr1mac_join_diagnostic_t    join_diagnostic;
+    lr1mac_linkadr_diagnostic_t linkadr_diagnostic;
+#endif
 
     // LoRaWan Mac Data for nwk Ans
     uint8_t nwk_payload[NWK_MAC_PAYLOAD_MAX_SIZE];  //@note resize this buffer

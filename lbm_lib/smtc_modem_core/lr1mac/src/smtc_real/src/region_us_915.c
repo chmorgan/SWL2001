@@ -97,6 +97,7 @@ typedef enum ch_mask_after_join_e
  * @param real
  */
 static void region_us_915_channel_mask_set_after_join( smtc_real_t* real );
+#if LORAWAN_FAILURE_DIAGNOSTICS
 /* TRACE_ERROR can be compiled out when MODEM_HAL_DBG_TRACE is disabled; keep debug always visible */
 #if ( MODEM_HAL_DBG_TRACE )
 #define US915_DUMP_CHANNEL_TRACE_ERROR( ... ) SMTC_MODEM_HAL_TRACE_ERROR( __VA_ARGS__ )
@@ -104,6 +105,7 @@ static void region_us_915_channel_mask_set_after_join( smtc_real_t* real );
 #define US915_DUMP_CHANNEL_TRACE_ERROR( ... ) smtc_modem_hal_print_trace( __VA_ARGS__ )
 #endif
 static void region_us_915_dump_no_channels_debug( smtc_real_t* real, uint8_t tx_data_rate );
+#endif
 
 /*
  * -----------------------------------------------------------------------------
@@ -213,6 +215,9 @@ void region_us_915_config( smtc_real_t* real )
 #endif
 
     first_ch_mask_received = ch_mask_after_join_init;
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    real->diagnostic.mask_source = MASK_SOURCE_DEFAULT;
+#endif
 }
 
 status_lorawan_t region_us_915_is_acceptable_tx_dr( smtc_real_t* real, uint8_t dr, bool is_ch_mask_from_link_adr )
@@ -357,6 +362,7 @@ status_lorawan_t region_us_915_get_join_next_channel( smtc_real_t* real, uint8_t
     return OKLORAWAN;
 }
 
+#if LORAWAN_FAILURE_DIAGNOSTICS
 static void region_us_915_dump_no_channels_debug( smtc_real_t* real, uint8_t tx_data_rate )
 {
     uint8_t snapshot_eligible_channels = 0;
@@ -364,10 +370,27 @@ static void region_us_915_dump_no_channels_debug( smtc_real_t* real, uint8_t tx_
     uint8_t dr_compatible_channels   = 0;
     uint8_t fully_eligible_channels  = 0;
 
+    US915_DUMP_CHANNEL_TRACE_ERROR( "LORAWAN_FAILURE_DIAGNOSTICS region=US915\n" );
     US915_DUMP_CHANNEL_TRACE_ERROR( "TX data rate: %u\n", tx_data_rate );
     US915_DUMP_CHANNEL_TRACE_ERROR( "first_ch_mask_received: %u\n", first_ch_mask_received );
     US915_DUMP_CHANNEL_TRACE_ERROR( "tx_channel_idx: %u\n", tx_channel_idx );
     US915_DUMP_CHANNEL_TRACE_ERROR( "number_of_channel_bank: %u\n", real_const.const_number_of_channel_bank );
+    US915_DUMP_CHANNEL_TRACE_ERROR(
+        "mask_source=%u (0=unknown 1=default 2=post_join 3=cflist 4=link_adr 5=other) cflist_mask_applied=%u\n",
+        real->diagnostic.mask_source, real->diagnostic.cflist_mask_applied );
+    US915_DUMP_CHANNEL_TRACE_ERROR(
+        "last_dr_selection valid=%u input_adr_dr=%u output_dr=%u strategy_before=%u strategy_after=%u "
+        "trials=%u fallback=%u supported_dr_mask=0x%04X\n",
+        real->diagnostic.valid, real->diagnostic.input_adr_dr, real->diagnostic.output_dr,
+        real->diagnostic.strategy_before, real->diagnostic.strategy_after, real->diagnostic.trials,
+        real->diagnostic.fallback, real->diagnostic.supported_dr_mask );
+
+    US915_DUMP_CHANNEL_TRACE_ERROR( "unwrapped_channel_mask (pending):\n" );
+    for( uint8_t i = 0; i < real_const.const_number_of_channel_bank; i++ )
+    {
+        US915_DUMP_CHANNEL_TRACE_ERROR( " %u:0x%02X", i, unwrapped_channel_mask[i] );
+    }
+    US915_DUMP_CHANNEL_TRACE_ERROR( "\n" );
 
     US915_DUMP_CHANNEL_TRACE_ERROR( "snapshot_channel_tx_mask:\n" );
     for( uint8_t i = 0; i < real_const.const_number_of_channel_bank; i++ )
@@ -418,6 +441,7 @@ static void region_us_915_dump_no_channels_debug( smtc_real_t* real, uint8_t tx_
                                     snapshot_eligible_channels, enabled_mask_channels, dr_compatible_channels,
                                     fully_eligible_channels );
 }
+#endif
 
 status_lorawan_t region_us_915_get_next_channel( smtc_real_t* real, uint8_t tx_data_rate, uint32_t* out_tx_frequency,
                                                  uint32_t* out_rx1_frequency, uint8_t* active_channel_nb )
@@ -446,6 +470,9 @@ status_lorawan_t region_us_915_get_next_channel( smtc_real_t* real, uint8_t tx_d
     {
         memset( unwrapped_channel_mask, 0xFF, real_const.const_number_of_channel_bank );
         region_us_915_set_channel_mask( real );
+#if LORAWAN_FAILURE_DIAGNOSTICS
+        real->diagnostic.mask_source = MASK_SOURCE_POST_JOIN;
+#endif
     }
 
     // If (all 125KHz channels OR all 500Khz channels) were used in 8 channels phases without received a ChMash
@@ -472,7 +499,9 @@ status_lorawan_t region_us_915_get_next_channel( smtc_real_t* real, uint8_t tx_d
     }
     if( *active_channel_nb == 0 )
     {
+#if LORAWAN_FAILURE_DIAGNOSTICS
         region_us_915_dump_no_channels_debug( real, tx_data_rate );
+#endif
         SMTC_MODEM_HAL_PANIC( "NO CHANNELS AVAILABLE\n" );
         return ERRORLORAWAN;
     }
@@ -519,6 +548,9 @@ void region_us_915_set_channel_mask( smtc_real_t* real )
     region_us_915_channel_mask_set_after_join( real );
 
     first_ch_mask_received = ch_mask_after_join_full;
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    real->diagnostic.mask_source = MASK_SOURCE_OTHER;
+#endif
 }
 
 void region_us_915_init_join_snapshot_channel_mask( smtc_real_t* real )
@@ -604,6 +636,9 @@ void region_us_915_init_after_join_snapshot_channel_mask( smtc_real_t* real, uin
 
     // Apply computed channel mask after join
     region_us_915_channel_mask_set_after_join( real );
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    real->diagnostic.mask_source = MASK_SOURCE_POST_JOIN;
+#endif
 }
 
 status_channel_t region_us_915_build_channel_mask( smtc_real_t* real, uint8_t channel_mask_cntl, uint16_t channel_mask )
@@ -721,6 +756,9 @@ void region_us_915_enable_all_channels_with_valid_freq( smtc_real_t* real )
         SMTC_PUT_BIT8( channel_index_enabled, i, CHANNEL_ENABLED );
         dr_bitfield_tx_channel[i] = DEFAULT_TX_DR_500_BIT_FIELD_US_915;
     }
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    real->diagnostic.mask_source = MASK_SOURCE_DEFAULT;
+#endif
 }
 
 modulation_type_t region_us_915_get_modulation_type_from_datarate( uint8_t datarate )
