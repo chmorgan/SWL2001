@@ -116,6 +116,11 @@ smtc_real_status_t smtc_real_is_supported_region( smtc_real_region_types_t regio
 
 void smtc_real_init( smtc_real_t* real, smtc_real_region_types_t region_type )
 {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    memset( &real->diagnostic, 0, sizeof( real->diagnostic ) );
+    real->diagnostic.mask_source = MASK_SOURCE_DEFAULT;
+#endif
+
     if( smtc_real_is_supported_region( region_type ) != SMTC_REAL_STATUS_OK )
     {
         SMTC_MODEM_HAL_PANIC( );
@@ -224,6 +229,11 @@ void smtc_real_init( smtc_real_t* real, smtc_real_region_types_t region_type )
 
 void smtc_real_config( smtc_real_t* real )
 {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    memset( &real->diagnostic, 0, sizeof( real->diagnostic ) );
+    real->diagnostic.mask_source = MASK_SOURCE_DEFAULT;
+#endif
+
     switch( real->region_type )
     {
 #if defined( REGION_WW_2G4 )
@@ -428,6 +438,15 @@ void smtc_real_set_dr_distribution( smtc_real_t* real, uint8_t adr_mode, uint8_t
 status_lorawan_t smtc_real_get_next_tx_dr( smtc_real_t* real, join_status_t join_status, dr_strategy_t* adr_mode_select,
                                            uint8_t* tx_data_rate, uint8_t tx_data_rate_adr, bool* adr_enable )
 {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    real->diagnostic.valid             = true;
+    real->diagnostic.fallback          = false;
+    real->diagnostic.trials            = 0;
+    real->diagnostic.supported_dr_mask = 0;
+    real->diagnostic.input_adr_dr       = tx_data_rate_adr;
+    real->diagnostic.strategy_before   = *adr_mode_select;
+#endif
+
     for( int j = 0; j < 224; j++ )  // return error after 224 trials
     {
         if( ( *adr_mode_select == STATIC_ADR_MODE ) && ( join_status == JOINED ) )
@@ -472,8 +491,16 @@ status_lorawan_t smtc_real_get_next_tx_dr( smtc_real_t* real, join_status_t join
         *tx_data_rate = ( *tx_data_rate > real_const.const_max_tx_dr ) ? real_const.const_max_tx_dr : *tx_data_rate;
 
         uint16_t dr_tmp = smtc_real_mask_tx_dr_channel_up_dwell_time_check( real );
+#if LORAWAN_FAILURE_DIAGNOSTICS
+        real->diagnostic.trials            = ( uint16_t ) ( j + 1 );
+        real->diagnostic.supported_dr_mask = dr_tmp;
+#endif
         if( SMTC_GET_BIT16( &dr_tmp, *tx_data_rate ) == 1 )
         {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+            real->diagnostic.output_dr      = *tx_data_rate;
+            real->diagnostic.strategy_after = *adr_mode_select;
+#endif
             return OKLORAWAN;
         }
     }
@@ -490,6 +517,11 @@ status_lorawan_t smtc_real_get_next_tx_dr( smtc_real_t* real, join_status_t join
         *tx_data_rate = tx_data_rate_adr;
     }
     *adr_enable = 1;
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    real->diagnostic.fallback       = true;
+    real->diagnostic.output_dr      = *tx_data_rate;
+    real->diagnostic.strategy_after = *adr_mode_select;
+#endif
     return OKLORAWAN;
 }
 
@@ -500,6 +532,10 @@ cf_list_type_t smtc_real_cf_list_type_supported( smtc_real_t* real )
 
 status_lorawan_t smtc_real_update_cflist( smtc_real_t* real, uint8_t* cf_list )
 {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    real->diagnostic.cflist_mask_applied = false;
+#endif
+
     status_lorawan_t status       = OKLORAWAN;
     cf_list_type_t   cf_list_type = cf_list[15];
 
@@ -594,6 +630,10 @@ status_lorawan_t smtc_real_update_cflist( smtc_real_t* real, uint8_t* cf_list )
             if( channel_status == OKCHANNEL )
             {
                 smtc_real_set_channel_mask( real );
+#if LORAWAN_FAILURE_DIAGNOSTICS
+                real->diagnostic.cflist_mask_applied = true;
+                real->diagnostic.mask_source        = MASK_SOURCE_CFLIST;
+#endif
             }
             break;
         }
@@ -938,6 +978,10 @@ int8_t smtc_real_convert_power_cmd( smtc_real_t* real, uint8_t power_cmd, uint8_
 
 void smtc_real_set_channel_mask( smtc_real_t* real )
 {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    real->diagnostic.mask_source = MASK_SOURCE_OTHER;
+#endif
+
 #if ( MODEM_HAL_DBG_TRACE == MODEM_HAL_FEATURE_ON )
     char channels_str[real_const.const_number_of_tx_channel * 3 + 1];
 #endif
@@ -1019,6 +1063,13 @@ void smtc_real_init_channel_mask( smtc_real_t* real )
 
 void smtc_real_init_join_snapshot_channel_mask( smtc_real_t* real )
 {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    // A new join starts a fresh history; the enabled mask itself is not changed here.
+    uint8_t mask_source = real->diagnostic.mask_source;
+    memset( &real->diagnostic, 0, sizeof( real->diagnostic ) );
+    real->diagnostic.mask_source = mask_source;
+#endif
+
     switch( real->region_type )
     {
 #if defined( REGION_WW_2G4 )

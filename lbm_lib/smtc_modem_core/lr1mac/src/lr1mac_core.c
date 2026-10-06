@@ -544,6 +544,12 @@ join_status_t lr1_mac_joined_status_get( lr1_stack_mac_t* lr1_mac_obj )
 void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
 {
     lr1_mac_obj->join_status = NOT_JOINED;
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    memset( &lr1_mac_obj->join_diagnostic, 0, sizeof( lr1_mac_obj->join_diagnostic ) );
+    memset( &lr1_mac_obj->linkadr_diagnostic, 0, sizeof( lr1_mac_obj->linkadr_diagnostic ) );
+    lr1_mac_obj->real->diagnostic.valid = false;
+    lr1_mac_obj->real->diagnostic.cflist_mask_applied = false;
+#endif
     lr1mac_core_abort( lr1_mac_obj );
     smtc_real_init_join_snapshot_channel_mask( lr1_mac_obj->real );
     lr1_mac_obj->retry_join_cpt = 0;
@@ -1210,10 +1216,75 @@ status_lorawan_t lr1mac_core_update_join_channel( lr1_stack_mac_t* lr1_mac_obj )
         lr1_mac_obj->real, &( lr1_mac_obj->tx_data_rate ), &( lr1_mac_obj->tx_frequency ),
         &( lr1_mac_obj->rx1_frequency ), &( lr1_mac_obj->rx2_frequency ), &( lr1_mac_obj->nb_available_tx_channel ) ) );
 }
+#if LORAWAN_FAILURE_DIAGNOSTICS && defined( REGION_US_915 )
+static void lr1mac_dump_no_channels_mac_context( const lr1_stack_mac_t* lr1_mac_obj )
+{
+    smtc_modem_hal_print_trace( "LORAWAN_FAILURE_DIAGNOSTICS MAC context begin\n" );
+    smtc_modem_hal_print_trace(
+        "stack_id=%u uptime_ms=%lu tx_dr=%u retained_adr_dr=%u strategy=%u adr_enabled=%u "
+        "join_status=%u mac_state=%u tx_frequency=%lu fcnt_up=%lu fcnt_down=%lu\n",
+        lr1_mac_obj->stack_id, ( unsigned long ) smtc_modem_hal_get_time_in_ms( ), lr1_mac_obj->tx_data_rate,
+        lr1_mac_obj->tx_data_rate_adr, lr1_mac_obj->adr_mode_select, lr1_mac_obj->adr_enable,
+        lr1_mac_obj->join_status, lr1_mac_obj->lr1mac_state, ( unsigned long ) lr1_mac_obj->tx_frequency,
+        ( unsigned long ) lr1_mac_obj->fcnt_up, ( unsigned long ) lr1_mac_obj->fcnt_dwn );
+
+    const lr1mac_join_diagnostic_t* join = &lr1_mac_obj->join_diagnostic;
+    smtc_modem_hal_print_trace( "last_processed_join_accept valid=%u\n", join->valid );
+    if( join->valid )
+    {
+        smtc_modem_hal_print_trace(
+            "accepted=%u join_dr=%u join_frequency=%lu cflist_present=%u update_called=%u mask_applied=%u\n",
+            join->accepted, join->tx_data_rate, ( unsigned long ) join->tx_frequency, join->cflist_present,
+            join->cflist_update_called, join->cflist_mask_applied );
+        if( join->cflist_update_called )
+        {
+            smtc_modem_hal_print_trace( "cflist_update_status=%d\n", join->cflist_update_status );
+        }
+        if( join->cflist_present )
+        {
+            smtc_modem_hal_print_trace( "cflist:" );
+            for( uint8_t i = 0; i < sizeof( lr1_mac_obj->cf_list ); i++ )
+            {
+                smtc_modem_hal_print_trace( " %02X", lr1_mac_obj->cf_list[i] );
+            }
+            smtc_modem_hal_print_trace( "\n" );
+        }
+    }
+
+    const lr1mac_linkadr_diagnostic_t* linkadr = &lr1_mac_obj->linkadr_diagnostic;
+    smtc_modem_hal_print_trace( "last_applied_linkadr valid=%u\n", linkadr->valid );
+    if( linkadr->valid )
+    {
+        const uint8_t requested_dr = linkadr->final_command[0] >> 4;
+        smtc_modem_hal_print_trace(
+            "group_count=%u status=0x%02X fcnt_down=%lu final_command=%02X %02X %02X %02X "
+            "requested_dr=0x%X retain_existing_dr=%u\n",
+            linkadr->group_count, linkadr->status, ( unsigned long ) linkadr->fcnt_down,
+            linkadr->final_command[0], linkadr->final_command[1], linkadr->final_command[2],
+            linkadr->final_command[3], requested_dr, requested_dr == 0x0F );
+    }
+    smtc_modem_hal_print_trace( "LORAWAN_FAILURE_DIAGNOSTICS MAC context end\n" );
+}
+#endif
+
 status_lorawan_t lr1mac_core_update_next_tx_channel( lr1_stack_mac_t* lr1_mac_obj )
 {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    status_lorawan_t status = smtc_real_get_next_channel(
+        lr1_mac_obj->real, lr1_mac_obj->tx_data_rate, &lr1_mac_obj->tx_frequency,
+        &lr1_mac_obj->rx1_frequency, &lr1_mac_obj->nb_available_tx_channel );
+#if defined( REGION_US_915 )
+    if( status != OKLORAWAN && lr1_mac_obj->real->region_type == SMTC_REAL_REGION_US_915 &&
+        lr1_mac_obj->nb_available_tx_channel == 0 )
+    {
+        lr1mac_dump_no_channels_mac_context( lr1_mac_obj );
+    }
+#endif
+    return status;
+#else
     return ( smtc_real_get_next_channel( lr1_mac_obj->real, lr1_mac_obj->tx_data_rate, &( lr1_mac_obj->tx_frequency ),
                                          &( lr1_mac_obj->rx1_frequency ), &( lr1_mac_obj->nb_available_tx_channel ) ) );
+#endif
 }
 uint32_t lr1mac_core_get_time_of_nwk_ans( lr1_stack_mac_t* lr1_mac_obj )
 {
@@ -1327,9 +1398,13 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
     if( ( lr1_mac_obj->type_of_ans_to_send == NWKFRAME_TOSEND ) ||
         ( lr1_mac_obj->type_of_ans_to_send == USRFRAME_TORETRANSMIT ) )
     {  // @note ack send during the next tx|| ( packet.IsFrameToSend == USERACK_TOSEND ) ) {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+        if( lr1mac_core_update_next_tx_channel( lr1_mac_obj ) != OKLORAWAN )
+#else
         if( smtc_real_get_next_channel( lr1_mac_obj->real, lr1_mac_obj->tx_data_rate, &lr1_mac_obj->tx_frequency,
                                         &lr1_mac_obj->rx1_frequency,
                                         &lr1_mac_obj->nb_available_tx_channel ) != OKLORAWAN )
+#endif
         {
             lr1_mac_obj->lr1mac_state = LWPSTATE_IDLE;
             if( lr1_mac_obj->type_of_ans_to_send == USRFRAME_TORETRANSMIT )
