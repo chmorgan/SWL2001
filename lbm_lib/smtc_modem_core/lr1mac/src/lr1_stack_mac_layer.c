@@ -1174,23 +1174,20 @@ void lr1_stack_mac_update( lr1_stack_mac_t* lr1_mac )
         lr1_mac->adr_mode_select = JOIN_DR_DISTRIBUTION;
         lr1_mac->retry_join_cpt++;
 
-        if( current_time_s + ( ( lr1_stack_toa_get( lr1_mac ) ) / 10 ) < ( lr1_mac->first_join_timestamp + 3600 ) )
+        const uint32_t elapsed_join_s = current_time_s - lr1_mac->first_join_timestamp;
+        const uint32_t time_on_air_ms = lr1_stack_toa_get( lr1_mac );
+        // Preserve native phase boundaries while allowing the seconds clock to wrap.
+        if( ( elapsed_join_s < 3600U ) && ( time_on_air_ms / 10U < 3600U - elapsed_join_s ) )
         {
             // during first hour after first join try => duty cycle of 1/100 ie 36s over 1 hour
-            lr1_mac->next_time_to_join_seconds = current_time_s + ( lr1_stack_toa_get( lr1_mac ) ) / 10;
+            lr1_mac->next_time_to_join_seconds = current_time_s + time_on_air_ms / 10U;
             // ts=cur_ts+(toa_s*100) = cur_ts + (toa_ms / 1000) * 100 = cur_ts + toa_ms/10
         }
-#if defined(LORAWAN_MAX_JOIN_BACKOFF_LIMIT_SECONDS)
-        else
-        {
-            lr1_mac->next_time_to_join_seconds = current_time_s + LORAWAN_MAX_JOIN_BACKOFF_LIMIT_SECONDS;
-        }
-#else
-        else if( current_time_s + ( lr1_stack_toa_get( lr1_mac ) ) < ( lr1_mac->first_join_timestamp + 36000 + 3600 ) )
+        else if( ( elapsed_join_s < 39600U ) && ( time_on_air_ms < 39600U - elapsed_join_s ) )
         {
             // during the 10 hours following first hour after first join try => duty cycle of 1/1000 ie 36s over 10
             // hours
-            lr1_mac->next_time_to_join_seconds = current_time_s + ( ( ( lr1_stack_toa_get( lr1_mac ) * 12 ) / 10 ) );
+            lr1_mac->next_time_to_join_seconds = current_time_s + time_on_air_ms * 12U / 10U;
             // ts=cur_ts+(toa_s*1000) = cur_ts + (toa_ms / 1000) * 1000 = cur_ts + toa_ms
             // *12/10 to round the number of JoinReq to the worst case
         }
@@ -1198,12 +1195,10 @@ void lr1_stack_mac_update( lr1_stack_mac_t* lr1_mac )
         {
             // Following the first 11 hours after first join try => duty cycle of 1/10000 ie 8.7s over 24 hours
             lr1_mac->next_time_to_join_seconds =
-                current_time_s + ( lr1_stack_toa_get( lr1_mac ) ) * 12;  // *12 to avoid to launch 6 JoinReq by 24h
+                current_time_s + time_on_air_ms * 12U;  // *12 to avoid to launch 6 JoinReq by 24h
             lr1_mac->adr_mode_select = JOIN_DR_DISTRIBUTION_LONG_TERM;
             // ts=cur_ts+(toa_s*10000) = cur_ts + (toa_ms / 1000) * 10000 = cur_ts + toa_ms*10
         }
-#endif
-
         // Now join status can be set as not joined
         lr1_mac->join_status = NOT_JOINED;
     }

@@ -56,6 +56,7 @@
 #include "smtc_lbt.h"
 #include "smtc_modem_test.h"
 #include "smtc_lora_cad_bt.h"
+#include "lorawan_join_retry_policy.h"
 #if defined( ADD_RELAY_TX )
 #include "relay_tx_api.h"
 #include "relay_tx_mac_parser.h"
@@ -105,13 +106,14 @@ typedef enum tx_protocol_manager_state
 
 #ifndef MODEM_MIN_RANDOM_DELAY_MS
 #if defined( ADD_RELAY_TX )
-#define MODEM_MIN_RANDOM_DELAY_MS ( ( smtc_relay_tx_is_enable( current_tpm_stack_id ) == false ) ? 500u : 3000u )
+#define MODEM_MIN_RANDOM_DELAY_MS \
+    ( ( smtc_relay_tx_is_enable( current_tpm_stack_id ) == false ) ? LORAWAN_JOIN_RETRY_TX_JITTER_MIN_MS : 3000u )
 #else
-#define MODEM_MIN_RANDOM_DELAY_MS 500u
+#define MODEM_MIN_RANDOM_DELAY_MS LORAWAN_JOIN_RETRY_TX_JITTER_MIN_MS
 #endif
 #endif
 #ifndef MODEM_MAX_RANDOM_DELAY_MS
-#define MODEM_MAX_RANDOM_DELAY_MS 6000u
+#define MODEM_MAX_RANDOM_DELAY_MS LORAWAN_JOIN_RETRY_TX_JITTER_MAX_MS
 #endif
 
 #if defined( ADD_RELAY_TX )
@@ -441,7 +443,22 @@ status_lorawan_t tx_protocol_manager_request( tx_protocol_manager_tx_type_t requ
         }
         else
         {
-            current_tpm_target_time_ms = target_time_ms + MODEM_TASK_DELAY_MS;
+#if LORAWAN_JOIN_RETRY_POLICY_ENABLED
+            if( request_type == TX_PROTOCOL_JOIN_LORA )
+            {
+                /* Keep join jitter within the shared retry budget, including with custom TPM defaults. */
+                const uint32_t min_delay_ms = MODEM_MIN_RANDOM_DELAY_MS;
+                current_tpm_target_time_ms = target_time_ms + smtc_modem_hal_get_random_nb_in_range(
+                    ( min_delay_ms < LORAWAN_JOIN_RETRY_TX_JITTER_MAX_MS )
+                        ? min_delay_ms
+                        : LORAWAN_JOIN_RETRY_TX_JITTER_MAX_MS,
+                    LORAWAN_JOIN_RETRY_TX_JITTER_MAX_MS );
+            }
+            else
+#endif
+            {
+                current_tpm_target_time_ms = target_time_ms + MODEM_TASK_DELAY_MS;
+            }
         }
         if( tpm_get_next_channel( ) != OKLORAWAN )
         {

@@ -413,6 +413,12 @@ uint16_t lorawan_api_devnonce_get( uint8_t stack_id );
 uint32_t lorawan_api_next_join_time_second_get( uint8_t stack_id );
 
 /**
+ * @brief Get the active application recovery delay limit, or zero when disabled.
+ * This limit includes retry jitter and never shortens the MAC deadline.
+ */
+uint32_t lorawan_api_join_retry_max_delay_seconds_get( uint8_t stack_id, uint32_t current_time_s );
+
+/**
  * @brief Is duty-cycle supported by the region
  *
  * @param stack_id
