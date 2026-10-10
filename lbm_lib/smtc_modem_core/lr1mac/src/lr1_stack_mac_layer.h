@@ -175,6 +175,16 @@ typedef struct lr1_stack_mac_s
     uint8_t  join_nonce[6];  // Join_nonce + NetId
     uint8_t  cf_list[16];
 
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+    // Uplink parameters of the join request that received the last join accept.
+    // Read by the application through smtc_modem_get_last_join_channel( ) so it
+    // can persist and later prefer this channel with
+    // smtc_modem_set_join_channel_preference( ).
+    uint32_t last_join_frequency_hz;
+    uint8_t  last_join_dr;
+    bool     last_join_valid;
+#endif
+
 #if LORAWAN_FAILURE_DIAGNOSTICS
     // Runtime-only failure context; never serialized into the modem's saved context.
     lr1mac_join_diagnostic_t    join_diagnostic;

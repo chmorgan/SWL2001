@@ -1598,6 +1598,13 @@ status_lorawan_t lr1_stack_mac_join_accept( lr1_stack_mac_t* lr1_mac )
 
     lr1_mac->join_status = JOINED;
 
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+    // Publish the successful uplink channel only after all JoinAccept validation.
+    lr1_mac->last_join_frequency_hz = lr1_mac->tx_frequency;
+    lr1_mac->last_join_dr           = lr1_mac->tx_data_rate;
+    lr1_mac->last_join_valid        = true;
+#endif
+
 #if LORAWAN_FAILURE_DIAGNOSTICS
     lr1_mac->join_diagnostic.accepted = true;
 #endif

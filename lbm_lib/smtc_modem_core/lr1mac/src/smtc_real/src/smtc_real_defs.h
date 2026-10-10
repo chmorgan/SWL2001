@@ -87,6 +87,10 @@ extern "C" {
 #define LORAWAN_FAILURE_DIAGNOSTICS 0
 #endif
 
+#ifndef LORAWAN_JOIN_CHANNEL_PREFERENCE
+#define LORAWAN_JOIN_CHANNEL_PREFERENCE 0
+#endif
+
 #if defined( RP2_101 )
 #define RP_VERSION_REVISION ( 2 )
 #define RP_VERSION_MAJOR ( 1 )
