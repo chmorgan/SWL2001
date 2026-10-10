@@ -890,6 +890,12 @@ bool lr1_stack_mac_rx_timer_configure( lr1_stack_mac_t* lr1_mac, const rx_win_ty
             delay_ms + ( int32_t ) ( lr1_mac->isr_tx_done_radio_timestamp - tcurrent_ms ) + lr1_mac->rx_offset_ms;
         if( talarm_ms < 0 )
         {
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+            if( lr1_mac->tx_mtype == JOIN_REQUEST )
+            {
+                smtc_real_join_preference_abort( lr1_mac->real );
+            }
+#endif
             lr1_mac->radio_process_state = RADIOSTATE_RX_FINISHED;
             return true;
         }

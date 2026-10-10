@@ -231,6 +231,41 @@ void smtc_real_init_channel_mask( smtc_real_t* real );
  */
 void smtc_real_init_join_snapshot_channel_mask( smtc_real_t* real );
 
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+/**
+ * \brief Arm a join-channel preference for the next join attempts
+ *
+ * While armed, up to \p attempts_remaining join channel selections are served on
+ * the preferred channel (when still enabled) before the region falls back to
+ * its normal channel selection. The preference lasts for the current join
+ * session only; it is cleared by smtc_real_clear_join_channel_preference( ).
+ * Preprocessing failures or aborts can reduce the number of actual transmissions.
+ *
+ * \param [IN] real              Real instance
+ * \param [IN] frequency_hz      Preferred join-request uplink frequency
+ * \param [IN] data_rate         Preferred join-request data rate
+ * \param [IN] attempts_remaining Number of selections allowed on the preferred channel
+ */
+void smtc_real_set_join_channel_preference( smtc_real_t* real, uint32_t frequency_hz, uint8_t data_rate,
+                                            uint8_t attempts_remaining );
+
+/**
+ * \brief Disarm any join-channel preference
+ *
+ * \param [IN] real  Real instance
+ */
+void smtc_real_clear_join_channel_preference( smtc_real_t* real );
+
+/** Clear attribution for an interrupted or replaced attempt, retaining session accounting. */
+void smtc_real_join_preference_abort( smtc_real_t* real );
+/** Mark a selected preferred join request as actually transmitted. */
+void smtc_real_join_preference_tx_done( smtc_real_t* real );
+/** Complete an attempt after join-accept processing; success clears the preference. */
+void smtc_real_join_preference_complete( smtc_real_t* real, bool joined, bool normal_completion );
+/** True only when every configured preferred selection transmitted and failed normally. */
+bool smtc_real_get_join_preference_exhausted( const smtc_real_t* real );
+#endif
+
 /**
  * \brief
  * \remark

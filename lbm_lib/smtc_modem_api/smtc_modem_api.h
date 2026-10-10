@@ -1194,6 +1194,64 @@ smtc_modem_return_code_t smtc_modem_set_nb_trans( uint8_t stack_id, uint8_t nb_t
 smtc_modem_return_code_t smtc_modem_get_nb_trans( uint8_t stack_id, uint8_t* nb_trans );
 
 /**
+ * @brief Get the channel used by the most recent successful join since last
+ * join status clear
+ *
+ * Only available when the stack is built with LORAWAN_JOIN_CHANNEL_PREFERENCE.
+ *
+ * @param [in]  stack_id      Stack identifier
+ * @param [out] frequency_hz  Frequency in Hz of the uplink channel used by the
+ *                            last successful join
+ * @param [out] data_rate     Data rate used on that channel
+ *
+ * @return Modem return code as defined in @ref smtc_modem_return_code_t
+ * @retval SMTC_MODEM_RC_OK                Command executed without errors
+ * @retval SMTC_MODEM_RC_INVALID           A pointer is NULL or no join was captured yet
+ * @retval SMTC_MODEM_RC_BUSY              Modem is currently in test mode
+ * @retval SMTC_MODEM_RC_INVALID_STACK_ID  Invalid \p stack_id
+ */
+smtc_modem_return_code_t smtc_modem_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz,
+                                                           uint8_t* data_rate );
+
+/**
+ * @brief Arm a join channel preference for the next join session
+ *
+ * The modem retries the given frequency/data rate for the first
+ * up to \p attempts_remaining channel selections of the next join session
+ * before falling back to normal channel hopping. The preference is volatile:
+ * it is cleared by a leave network / join status clear and at boot.
+ * Preprocessing failures or aborts can reduce the number of actual transmissions.
+ *
+ * Only available when the stack is built with LORAWAN_JOIN_CHANNEL_PREFERENCE.
+ *
+ * @param [in] stack_id            Stack identifier
+ * @param [in] frequency_hz        Frequency in Hz to prefer (0 clears the preference)
+ * @param [in] data_rate           Data rate to use on the preferred channel
+ * @param [in] attempts_remaining  Number of join attempts using the preference [1:8]
+ *
+ * @return Modem return code as defined in @ref smtc_modem_return_code_t
+ * @retval SMTC_MODEM_RC_OK                Command executed without errors
+ * @retval SMTC_MODEM_RC_BUSY              Modem is joined, joining, or in test mode
+ * @retval SMTC_MODEM_RC_INVALID_STACK_ID  Invalid \p stack_id
+ */
+smtc_modem_return_code_t smtc_modem_set_join_channel_preference( uint8_t stack_id, uint32_t frequency_hz,
+                                                                 uint8_t data_rate, uint8_t attempts_remaining );
+
+/**
+ * @brief Get whether all configured preferred selections transmitted and failed
+ *
+ * The result is retained during fallback channel hopping, and cleared on a
+ * successful join, re-arm, leave network, or reset. Launch failures, aborted
+ * attempts, and skipped receive windows do not count as completed failures.
+ * Only available with LORAWAN_JOIN_CHANNEL_PREFERENCE.
+ *
+ * @retval SMTC_MODEM_RC_OK      Result returned in exhausted
+ * @retval SMTC_MODEM_RC_INVALID A NULL output pointer or invalid stack identifier
+ * @retval SMTC_MODEM_RC_BUSY    Modem is in test mode
+ */
+smtc_modem_return_code_t smtc_modem_get_join_channel_preference_exhausted( uint8_t stack_id, bool* exhausted );
+
+/**
  * @brief Get the current enabled Datarate in regards of Uplink ChMash and DwellTime
  *
  * @param [in]  stack_id                 Stack identifier
