@@ -1546,6 +1546,14 @@ status_lorawan_t lr1_stack_mac_join_accept( lr1_stack_mac_t* lr1_mac )
     lr1_mac->real->diagnostic.cflist_mask_applied = false;
 #endif
 
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+    // Remember the uplink channel that succeeded so the application can ask
+    // the stack to prefer it on a later join session.
+    lr1_mac->last_join_frequency_hz = lr1_mac->tx_frequency;
+    lr1_mac->last_join_dr           = lr1_mac->tx_data_rate;
+    lr1_mac->last_join_valid        = true;
+#endif
+
     bool is_valid_join_cflist = false;
 
     if( lr1_mac->rx_down_data.rx_payload_size > 13 )  // MIC has been removed (17 bytes - 4 bytes MIC)

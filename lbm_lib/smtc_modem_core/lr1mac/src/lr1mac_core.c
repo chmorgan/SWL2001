@@ -550,6 +550,11 @@ void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
     lr1_mac_obj->real->diagnostic.valid = false;
     lr1_mac_obj->real->diagnostic.cflist_mask_applied = false;
 #endif
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+    lr1_mac_obj->last_join_frequency_hz = 0;
+    lr1_mac_obj->last_join_dr           = 0;
+    lr1_mac_obj->last_join_valid        = false;
+#endif
     lr1mac_core_abort( lr1_mac_obj );
     smtc_real_init_join_snapshot_channel_mask( lr1_mac_obj->real );
     lr1_mac_obj->retry_join_cpt = 0;
