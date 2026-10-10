@@ -770,6 +770,39 @@ smtc_modem_return_code_t smtc_modem_join_network( uint8_t stack_id )
 
     return return_code;
 }
+
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+smtc_modem_return_code_t smtc_modem_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz,
+                                                           uint8_t* data_rate )
+{
+    RETURN_BUSY_IF_TEST_MODE( );
+    RETURN_INVALID_IF_NULL( frequency_hz );
+    RETURN_INVALID_IF_NULL( data_rate );
+
+    if( lorawan_api_get_last_join_channel( stack_id, frequency_hz, data_rate ) == false )
+    {
+        return SMTC_MODEM_RC_INVALID;  // No successful join captured yet
+    }
+    return SMTC_MODEM_RC_OK;
+}
+
+smtc_modem_return_code_t smtc_modem_set_join_channel_preference( uint8_t stack_id, uint32_t frequency_hz,
+                                                                 uint8_t data_rate, uint8_t attempts_remaining )
+{
+    RETURN_BUSY_IF_TEST_MODE( );
+
+    smtc_modem_status_mask_t status_mask = modem_get_status( stack_id );
+    if( ( ( status_mask & SMTC_MODEM_STATUS_JOINED ) == SMTC_MODEM_STATUS_JOINED ) ||
+        ( ( status_mask & SMTC_MODEM_STATUS_JOINING ) == SMTC_MODEM_STATUS_JOINING ) )
+    {
+        return SMTC_MODEM_RC_BUSY;
+    }
+
+    lorawan_api_set_join_channel_preference( stack_id, frequency_hz, data_rate, attempts_remaining );
+    return SMTC_MODEM_RC_OK;
+}
+#endif
+
 smtc_modem_return_code_t smtc_modem_request_uplink( uint8_t stack_id, uint8_t f_port, bool confirmed,
                                                     const uint8_t* payload, uint8_t payload_length )
 {

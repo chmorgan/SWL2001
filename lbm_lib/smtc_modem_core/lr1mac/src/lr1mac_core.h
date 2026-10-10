@@ -91,6 +91,19 @@ status_lorawan_t lr1mac_core_join( lr1_stack_mac_t* lr1_mac_obj, uint32_t target
  */
 void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj );
 
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+/**
+ * @brief Get the channel used by the most recent successful join
+ *
+ * @param [in]  lr1_mac_obj    Pointer to the MAC layer context
+ * @param [out] frequency_hz   Frequency in Hz of the join accept Tx channel
+ * @param [out] data_rate      Data rate used on the join accept Tx channel
+ *
+ * @return  true if a join channel was captured, false otherwise
+ */
+bool lr1mac_core_last_join_channel_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t* frequency_hz, uint8_t* data_rate );
+#endif
+
 /**
  * @brief abort LoRaWAN task
  * @remark Tx, Rx will be aborted

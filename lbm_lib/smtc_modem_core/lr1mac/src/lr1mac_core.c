@@ -554,6 +554,7 @@ void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
     lr1_mac_obj->last_join_frequency_hz = 0;
     lr1_mac_obj->last_join_dr           = 0;
     lr1_mac_obj->last_join_valid        = false;
+    smtc_real_clear_join_channel_preference( lr1_mac_obj->real );
 #endif
     lr1mac_core_abort( lr1_mac_obj );
     smtc_real_init_join_snapshot_channel_mask( lr1_mac_obj->real );
@@ -562,6 +563,26 @@ void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
     // Revert ADR modem in case the leave network command is called before join success
     lr1_mac_obj->adr_mode_select = lr1_mac_obj->adr_mode_select_tmp;
 }
+
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+/**************************************************/
+/*      LoraWan  Last Join Channel  Getter        */
+/**************************************************/
+bool lr1mac_core_last_join_channel_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t* frequency_hz, uint8_t* data_rate )
+{
+    if( ( lr1_mac_obj == NULL ) || ( frequency_hz == NULL ) || ( data_rate == NULL ) )
+    {
+        return false;
+    }
+    if( lr1_mac_obj->last_join_valid == false )
+    {
+        return false;
+    }
+    *frequency_hz = lr1_mac_obj->last_join_frequency_hz;
+    *data_rate    = lr1_mac_obj->last_join_dr;
+    return true;
+}
+#endif
 
 /**************************************************/
 /*         LoraWan  SendPayload  Method           */

@@ -337,6 +337,16 @@ typedef struct smtc_real_diagnostic_s
 } smtc_real_diagnostic_t;
 #endif
 
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+typedef struct smtc_real_join_preference_s
+{
+    bool     active;             // Preference armed for the current join session
+    uint32_t frequency_hz;       // Preferred join-request uplink frequency
+    uint8_t  data_rate;          // Preferred join-request data rate
+    uint8_t  attempts_remaining; // Transmissions still allowed on the preferred channel
+} smtc_real_join_preference_t;
+#endif
+
 typedef struct smtc_real_s
 {
     smtc_real_region_types_t region_type;
@@ -345,6 +355,10 @@ typedef struct smtc_real_s
 
 #if LORAWAN_FAILURE_DIAGNOSTICS
     smtc_real_diagnostic_t diagnostic;
+#endif
+
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+    smtc_real_join_preference_t join_preference;
 #endif
 
     union smtc_real_region_u

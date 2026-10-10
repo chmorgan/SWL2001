@@ -1070,6 +1070,7 @@ void smtc_real_init_join_snapshot_channel_mask( smtc_real_t* real )
     real->diagnostic.mask_source = mask_source;
 #endif
 
+
     switch( real->region_type )
     {
 #if defined( REGION_WW_2G4 )
@@ -3316,3 +3317,29 @@ void smtc_real_get_rx_start_time_offset_ms( smtc_real_t* real, uint8_t datarate,
         "rx_start_target -> datarate:%d, rx_window_symb:%u, rx_offset_ms:%d, board_delay_ms:%d\n", datarate,
         rx_window_symb, *rx_offset_ms, board_delay_ms );
 }
+
+#if LORAWAN_JOIN_CHANNEL_PREFERENCE
+void smtc_real_set_join_channel_preference( smtc_real_t* real, uint32_t frequency_hz, uint8_t data_rate,
+                                            uint8_t attempts_remaining )
+{
+    if( real == NULL )
+    {
+        return;
+    }
+
+    real->join_preference.frequency_hz      = frequency_hz;
+    real->join_preference.data_rate         = data_rate;
+    real->join_preference.attempts_remaining = attempts_remaining;
+    real->join_preference.active            = ( frequency_hz != 0 ) && ( attempts_remaining > 0 );
+}
+
+void smtc_real_clear_join_channel_preference( smtc_real_t* real )
+{
+    if( real == NULL )
+    {
+        return;
+    }
+
+    memset( &real->join_preference, 0, sizeof( real->join_preference ) );
+}
+#endif
