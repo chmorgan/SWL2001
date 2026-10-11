@@ -354,6 +354,13 @@ typedef struct smtc_real_join_preference_s
     uint8_t  failures_remaining; // Completed failed transmissions needed to prove exhaustion
     smtc_real_join_preference_attempt_t attempt_state;
 } smtc_real_join_preference_t;
+
+typedef struct smtc_real_first_join_tx_s
+{
+    uint32_t frequency_hz; // Zero until the first actual join TX of this session
+    uint8_t  data_rate;
+    bool     used_preference;
+} smtc_real_first_join_tx_t;
 #endif
 
 typedef struct smtc_real_s
@@ -368,6 +375,7 @@ typedef struct smtc_real_s
 
 #if LORAWAN_JOIN_CHANNEL_PREFERENCE
     smtc_real_join_preference_t join_preference;
+    smtc_real_first_join_tx_t   first_join_tx;
 #endif
 
     union smtc_real_region_u

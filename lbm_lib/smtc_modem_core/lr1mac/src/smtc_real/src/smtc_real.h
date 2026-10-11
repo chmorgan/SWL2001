@@ -264,6 +264,14 @@ void smtc_real_join_preference_tx_done( smtc_real_t* real );
 void smtc_real_join_preference_complete( smtc_real_t* real, bool joined, bool normal_completion );
 /** True only when every configured preferred selection transmitted and failed normally. */
 bool smtc_real_get_join_preference_exhausted( const smtc_real_t* real );
+
+/** Start first-TX diagnostics for a new explicit join session, retaining the armed preference. */
+void smtc_real_clear_first_join_tx( smtc_real_t* real );
+/** Capture only the first completed join-request transmission, before its attribution is cleared. */
+void smtc_real_capture_first_join_tx( smtc_real_t* real, uint32_t frequency_hz, uint8_t data_rate );
+/** Retained across automatic retries and successful join; false until an actual join TX completes. */
+bool smtc_real_get_first_join_tx( const smtc_real_t* real, uint32_t* frequency_hz, uint8_t* data_rate,
+                                  bool* used_preference );
 #endif
 
 /**

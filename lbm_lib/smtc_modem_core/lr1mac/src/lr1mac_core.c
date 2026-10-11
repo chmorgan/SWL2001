@@ -268,6 +268,8 @@ lr1mac_states_t lr1mac_core_process( lr1_stack_mac_t* lr1_mac_obj )
             if( ( lr1_mac_obj->tx_mtype == JOIN_REQUEST ) &&
                 ( lr1_mac_obj->rp_planner_status == RP_STATUS_TX_DONE ) )
             {
+                smtc_real_capture_first_join_tx(
+                    lr1_mac_obj->real, lr1_mac_obj->tx_frequency, lr1_mac_obj->tx_data_rate );
                 smtc_real_join_preference_tx_done( lr1_mac_obj->real );
             }
 #endif
@@ -562,6 +564,7 @@ void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
     lr1_mac_obj->last_join_dr           = 0;
     lr1_mac_obj->last_join_valid        = false;
     smtc_real_clear_join_channel_preference( lr1_mac_obj->real );
+    smtc_real_clear_first_join_tx( lr1_mac_obj->real );
 #endif
     lr1mac_core_abort( lr1_mac_obj );
     smtc_real_init_join_snapshot_channel_mask( lr1_mac_obj->real );

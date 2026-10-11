@@ -118,6 +118,7 @@ void smtc_real_init( smtc_real_t* real, smtc_real_region_types_t region_type )
 {
 #if LORAWAN_JOIN_CHANNEL_PREFERENCE
     smtc_real_clear_join_channel_preference( real );
+    smtc_real_clear_first_join_tx( real );
 #endif
 #if LORAWAN_FAILURE_DIAGNOSTICS
     memset( &real->diagnostic, 0, sizeof( real->diagnostic ) );
@@ -3389,5 +3390,34 @@ void smtc_real_join_preference_complete( smtc_real_t* real, bool joined, bool no
 bool smtc_real_get_join_preference_exhausted( const smtc_real_t* real )
 {
     return ( real->join_preference.frequency_hz != 0 ) && ( real->join_preference.failures_remaining == 0 );
+}
+
+void smtc_real_clear_first_join_tx( smtc_real_t* real )
+{
+    memset( &real->first_join_tx, 0, sizeof( real->first_join_tx ) );
+}
+
+void smtc_real_capture_first_join_tx( smtc_real_t* real, uint32_t frequency_hz, uint8_t data_rate )
+{
+    if( real->first_join_tx.frequency_hz != 0 )
+    {
+        return;
+    }
+    real->first_join_tx.frequency_hz = frequency_hz;
+    real->first_join_tx.data_rate = data_rate;
+    real->first_join_tx.used_preference = real->join_preference.attempt_state != SMTC_REAL_JOIN_PREFERENCE_NONE;
+}
+
+bool smtc_real_get_first_join_tx( const smtc_real_t* real, uint32_t* frequency_hz, uint8_t* data_rate,
+                                  bool* used_preference )
+{
+    if( real->first_join_tx.frequency_hz == 0 )
+    {
+        return false;
+    }
+    *frequency_hz = real->first_join_tx.frequency_hz;
+    *data_rate = real->first_join_tx.data_rate;
+    *used_preference = real->first_join_tx.used_preference;
+    return true;
 }
 #endif

@@ -214,6 +214,9 @@ void lorawan_api_set_join_channel_preference( uint8_t stack_id, uint32_t frequen
                                               uint8_t attempts_remaining );
 /** Sticky until success or session reset; excludes launch failures and interrupted attempts. */
 bool lorawan_api_get_join_channel_preference_exhausted( uint8_t stack_id );
+void lorawan_api_clear_first_join_tx( uint8_t stack_id );
+bool lorawan_api_get_first_join_tx( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
+                                    bool* used_preference );
 #endif
 
 /**

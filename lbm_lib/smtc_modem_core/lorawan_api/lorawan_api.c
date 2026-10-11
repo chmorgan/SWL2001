@@ -250,6 +250,19 @@ bool lorawan_api_get_join_channel_preference_exhausted( uint8_t stack_id )
     PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
     return smtc_real_get_join_preference_exhausted( lr1_mac_obj[stack_id].real );
 }
+
+void lorawan_api_clear_first_join_tx( uint8_t stack_id )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    smtc_real_clear_first_join_tx( lr1_mac_obj[stack_id].real );
+}
+
+bool lorawan_api_get_first_join_tx( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
+                                    bool* used_preference )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    return smtc_real_get_first_join_tx( lr1_mac_obj[stack_id].real, frequency_hz, data_rate, used_preference );
+}
 #endif
 
 status_lorawan_t lorawan_api_dr_strategy_set( dr_strategy_t dr_strategy, uint8_t stack_id )
