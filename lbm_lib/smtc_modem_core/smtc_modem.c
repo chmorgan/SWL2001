@@ -779,25 +779,26 @@ smtc_modem_return_code_t smtc_modem_join_network( uint8_t stack_id )
 
 #if LORAWAN_JOIN_CHANNEL_PREFERENCE
 smtc_modem_return_code_t smtc_modem_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz,
-                                                           uint8_t* data_rate )
+                                                           uint8_t* data_rate, uint8_t* subband )
 {
     RETURN_BUSY_IF_TEST_MODE( );
     RETURN_INVALID_IF_NULL( frequency_hz );
     RETURN_INVALID_IF_NULL( data_rate );
+    RETURN_INVALID_IF_NULL( subband );
     if( stack_id >= NUMBER_OF_STACKS )
     {
         return SMTC_MODEM_RC_INVALID_STACK_ID;
     }
 
-    if( lorawan_api_get_last_join_channel( stack_id, frequency_hz, data_rate ) == false )
+    if( lorawan_api_get_last_join_channel( stack_id, frequency_hz, data_rate, subband ) == false )
     {
         return SMTC_MODEM_RC_INVALID;  // No successful join captured yet
     }
     return SMTC_MODEM_RC_OK;
 }
 
-smtc_modem_return_code_t smtc_modem_set_join_channel_preference( uint8_t stack_id, uint32_t frequency_hz,
-                                                                 uint8_t data_rate, uint8_t attempts_remaining )
+smtc_modem_return_code_t smtc_modem_set_join_channel_preference( uint8_t stack_id, uint8_t subband,
+                                                                 uint8_t attempts_remaining )
 {
     RETURN_BUSY_IF_TEST_MODE( );
     if( stack_id >= NUMBER_OF_STACKS )
@@ -812,7 +813,7 @@ smtc_modem_return_code_t smtc_modem_set_join_channel_preference( uint8_t stack_i
         return SMTC_MODEM_RC_BUSY;
     }
 
-    lorawan_api_set_join_channel_preference( stack_id, frequency_hz, data_rate, attempts_remaining );
+    lorawan_api_set_join_channel_preference( stack_id, subband, attempts_remaining );
     return SMTC_MODEM_RC_OK;
 }
 

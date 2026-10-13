@@ -1608,6 +1608,28 @@ status_lorawan_t lr1_stack_mac_join_accept( lr1_stack_mac_t* lr1_mac )
     // Publish the successful uplink channel only after all JoinAccept validation.
     lr1_mac->last_join_frequency_hz = lr1_mac->tx_frequency;
     lr1_mac->last_join_dr           = lr1_mac->tx_data_rate;
+    lr1_mac->last_join_subband      = SMTC_REAL_JOIN_PREFERENCE_SUBBAND_NONE;
+#if defined( REGION_US_915 )
+    if( lr1_mac->real->region_type == SMTC_REAL_REGION_US_915 )
+    {
+        if( lr1_mac->tx_data_rate == 4 )
+        {
+            // 500 kHz join uplinks use the fixed DR4 channel in bank 8.
+            lr1_mac->last_join_subband = BANK_8_500_US915;
+        }
+        else if( ( lr1_mac->tx_frequency >= DEFAULT_TX_FREQ_125_START_US_915 ) &&
+                 ( lr1_mac->tx_frequency <
+                   ( DEFAULT_TX_FREQ_125_START_US_915 + ( 72 * DEFAULT_TX_STEP_125_US_915 ) ) ) )
+        {
+            const uint8_t subband = ( ( lr1_mac->tx_frequency - DEFAULT_TX_FREQ_125_START_US_915 ) /
+                                      DEFAULT_TX_STEP_125_US_915 ) / 8;
+            if( subband < BANK_MAX_US915 )
+            {
+                lr1_mac->last_join_subband = subband;
+            }
+        }
+    }
+#endif  // defined( REGION_US_915 )
     lr1_mac->last_join_valid        = true;
 #endif
 

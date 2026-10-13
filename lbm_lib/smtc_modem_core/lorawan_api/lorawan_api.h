@@ -199,19 +199,20 @@ void lorawan_api_join_status_clear( uint8_t stack_id );
  * @param [in]  stack_id       Multiprotocol service identifier
  * @param [out] frequency_hz   Frequency in Hz of the join accept Tx channel
  * @param [out] data_rate      Data rate used on the join accept Tx channel
+ * @param [out] subband        US915 bank containing the Tx channel (0xFF if unknown)
  *
  * @return  true if a join channel was captured, false otherwise
  */
-bool lorawan_api_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate );
+bool lorawan_api_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
+                                        uint8_t* subband );
 
 /**
- * @brief Arm a join channel preference for the next join session
+ * @brief Arm a join subband preference for the next join session
  *
- * The region layer retries this channel (frequency + data rate) for
+ * The region layer keeps hopping inside this bank/subband for
  * attempts_remaining join attempts before falling back to normal hopping.
  */
-void lorawan_api_set_join_channel_preference( uint8_t stack_id, uint32_t frequency_hz, uint8_t data_rate,
-                                              uint8_t attempts_remaining );
+void lorawan_api_set_join_channel_preference( uint8_t stack_id, uint8_t subband, uint8_t attempts_remaining );
 /** Sticky until success or session reset; excludes launch failures and interrupted attempts. */
 bool lorawan_api_get_join_channel_preference_exhausted( uint8_t stack_id );
 void lorawan_api_clear_first_join_tx( uint8_t stack_id );

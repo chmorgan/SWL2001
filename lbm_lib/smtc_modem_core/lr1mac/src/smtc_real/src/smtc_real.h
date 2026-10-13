@@ -233,21 +233,20 @@ void smtc_real_init_join_snapshot_channel_mask( smtc_real_t* real );
 
 #if LORAWAN_JOIN_CHANNEL_PREFERENCE
 /**
- * \brief Arm a join-channel preference for the next join attempts
+ * \brief Arm a join-subband preference for the next join attempts
  *
- * While armed, up to \p attempts_remaining join channel selections are served on
- * the preferred channel (when still enabled) before the region falls back to
- * its normal channel selection. The preference lasts for the current join
- * session only; it is cleared by smtc_real_clear_join_channel_preference( ).
+ * While armed, up to \p attempts_remaining join channel selections are served by
+ * the region's normal channel hopping restricted to the preferred bank/subband
+ * (when it still has enabled channels) before the region falls back to its
+ * normal channel selection. The preference lasts for the current join session
+ * only; it is cleared by smtc_real_clear_join_channel_preference( ).
  * Preprocessing failures or aborts can reduce the number of actual transmissions.
  *
  * \param [IN] real              Real instance
- * \param [IN] frequency_hz      Preferred join-request uplink frequency
- * \param [IN] data_rate         Preferred join-request data rate
- * \param [IN] attempts_remaining Number of selections allowed on the preferred channel
+ * \param [IN] subband           Preferred US915 bank (us_915_channels_bank_t)
+ * \param [IN] attempts_remaining Number of selections allowed on the preferred subband
  */
-void smtc_real_set_join_channel_preference( smtc_real_t* real, uint32_t frequency_hz, uint8_t data_rate,
-                                            uint8_t attempts_remaining );
+void smtc_real_set_join_channel_preference( smtc_real_t* real, uint8_t subband, uint8_t attempts_remaining );
 
 /**
  * \brief Disarm any join-channel preference

@@ -1203,6 +1203,8 @@ smtc_modem_return_code_t smtc_modem_get_nb_trans( uint8_t stack_id, uint8_t* nb_
  * @param [out] frequency_hz  Frequency in Hz of the uplink channel used by the
  *                            last successful join
  * @param [out] data_rate     Data rate used on that channel
+ * @param [out] subband       US915 bank containing that channel (0xFF if the
+ *                            join region or channel did not map to a bank)
  *
  * @return Modem return code as defined in @ref smtc_modem_return_code_t
  * @retval SMTC_MODEM_RC_OK                Command executed without errors
@@ -1211,22 +1213,22 @@ smtc_modem_return_code_t smtc_modem_get_nb_trans( uint8_t stack_id, uint8_t* nb_
  * @retval SMTC_MODEM_RC_INVALID_STACK_ID  Invalid \p stack_id
  */
 smtc_modem_return_code_t smtc_modem_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz,
-                                                           uint8_t* data_rate );
+                                                           uint8_t* data_rate, uint8_t* subband );
 
 /**
- * @brief Arm a join channel preference for the next join session
+ * @brief Arm a join subband preference for the next join session
  *
- * The modem retries the given frequency/data rate for the first
- * up to \p attempts_remaining channel selections of the next join session
- * before falling back to normal channel hopping. The preference is volatile:
- * it is cleared by a leave network / join status clear and at boot.
+ * The modem keeps selecting channels from the given US915 bank with the
+ * normal channel hopping algorithm (within the bank) for the first up to
+ * \p attempts_remaining channel selections of the next join session before
+ * falling back to region-wide hopping. The preference is volatile: it is
+ * cleared by a leave network / join status clear and at boot.
  * Preprocessing failures or aborts can reduce the number of actual transmissions.
  *
  * Only available when the stack is built with LORAWAN_JOIN_CHANNEL_PREFERENCE.
  *
  * @param [in] stack_id            Stack identifier
- * @param [in] frequency_hz        Frequency in Hz to prefer (0 clears the preference)
- * @param [in] data_rate           Data rate to use on the preferred channel
+ * @param [in] subband             US915 bank to prefer [0:8] (0xFF clears the preference)
  * @param [in] attempts_remaining  Number of join attempts using the preference [1:8]
  *
  * @return Modem return code as defined in @ref smtc_modem_return_code_t
@@ -1234,8 +1236,8 @@ smtc_modem_return_code_t smtc_modem_get_last_join_channel( uint8_t stack_id, uin
  * @retval SMTC_MODEM_RC_BUSY              Modem is joined, joining, or in test mode
  * @retval SMTC_MODEM_RC_INVALID_STACK_ID  Invalid \p stack_id
  */
-smtc_modem_return_code_t smtc_modem_set_join_channel_preference( uint8_t stack_id, uint32_t frequency_hz,
-                                                                 uint8_t data_rate, uint8_t attempts_remaining );
+smtc_modem_return_code_t smtc_modem_set_join_channel_preference( uint8_t stack_id, uint8_t subband,
+                                                                 uint8_t attempts_remaining );
 
 /**
  * @brief Get whether all configured preferred selections transmitted and failed

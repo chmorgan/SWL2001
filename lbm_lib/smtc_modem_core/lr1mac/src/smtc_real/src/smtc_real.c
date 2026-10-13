@@ -3326,8 +3326,7 @@ void smtc_real_get_rx_start_time_offset_ms( smtc_real_t* real, uint8_t datarate,
 }
 
 #if LORAWAN_JOIN_CHANNEL_PREFERENCE
-void smtc_real_set_join_channel_preference( smtc_real_t* real, uint32_t frequency_hz, uint8_t data_rate,
-                                            uint8_t attempts_remaining )
+void smtc_real_set_join_channel_preference( smtc_real_t* real, uint8_t subband, uint8_t attempts_remaining )
 {
     if( real == NULL )
     {
@@ -3335,16 +3334,15 @@ void smtc_real_set_join_channel_preference( smtc_real_t* real, uint32_t frequenc
     }
 
     smtc_real_clear_join_channel_preference( real );
-    if( ( frequency_hz == 0 ) || ( attempts_remaining == 0 ) )
+    if( ( subband == SMTC_REAL_JOIN_PREFERENCE_SUBBAND_NONE ) || ( attempts_remaining == 0 ) )
     {
         return;
     }
 
-    real->join_preference.frequency_hz      = frequency_hz;
-    real->join_preference.data_rate         = data_rate;
+    real->join_preference.subband            = subband;
     real->join_preference.attempts_remaining = attempts_remaining;
     real->join_preference.failures_remaining = attempts_remaining;
-    real->join_preference.active            = ( frequency_hz != 0 ) && ( attempts_remaining > 0 );
+    real->join_preference.active             = true;
 }
 
 void smtc_real_clear_join_channel_preference( smtc_real_t* real )
@@ -3355,6 +3353,7 @@ void smtc_real_clear_join_channel_preference( smtc_real_t* real )
     }
 
     memset( &real->join_preference, 0, sizeof( real->join_preference ) );
+    real->join_preference.subband = SMTC_REAL_JOIN_PREFERENCE_SUBBAND_NONE;
 }
 
 void smtc_real_join_preference_abort( smtc_real_t* real )
@@ -3389,7 +3388,8 @@ void smtc_real_join_preference_complete( smtc_real_t* real, bool joined, bool no
 
 bool smtc_real_get_join_preference_exhausted( const smtc_real_t* real )
 {
-    return ( real->join_preference.frequency_hz != 0 ) && ( real->join_preference.failures_remaining == 0 );
+    return ( real->join_preference.subband != SMTC_REAL_JOIN_PREFERENCE_SUBBAND_NONE ) &&
+           ( real->join_preference.failures_remaining == 0 );
 }
 
 void smtc_real_clear_first_join_tx( smtc_real_t* real )

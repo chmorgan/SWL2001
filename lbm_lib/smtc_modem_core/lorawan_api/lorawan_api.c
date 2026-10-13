@@ -232,17 +232,17 @@ void lorawan_api_join_status_clear( uint8_t stack_id )
 }
 
 #if LORAWAN_JOIN_CHANNEL_PREFERENCE
-bool lorawan_api_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate )
+bool lorawan_api_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
+                                        uint8_t* subband )
 {
     PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
-    return lr1mac_core_last_join_channel_get( &lr1_mac_obj[stack_id], frequency_hz, data_rate );
+    return lr1mac_core_last_join_channel_get( &lr1_mac_obj[stack_id], frequency_hz, data_rate, subband );
 }
 
-void lorawan_api_set_join_channel_preference( uint8_t stack_id, uint32_t frequency_hz, uint8_t data_rate,
-                                              uint8_t attempts_remaining )
+void lorawan_api_set_join_channel_preference( uint8_t stack_id, uint8_t subband, uint8_t attempts_remaining )
 {
     PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
-    smtc_real_set_join_channel_preference( lr1_mac_obj[stack_id].real, frequency_hz, data_rate, attempts_remaining );
+    smtc_real_set_join_channel_preference( lr1_mac_obj[stack_id].real, subband, attempts_remaining );
 }
 
 bool lorawan_api_get_join_channel_preference_exhausted( uint8_t stack_id )

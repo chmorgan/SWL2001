@@ -562,6 +562,7 @@ void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
 #if LORAWAN_JOIN_CHANNEL_PREFERENCE
     lr1_mac_obj->last_join_frequency_hz = 0;
     lr1_mac_obj->last_join_dr           = 0;
+    lr1_mac_obj->last_join_subband      = SMTC_REAL_JOIN_PREFERENCE_SUBBAND_NONE;
     lr1_mac_obj->last_join_valid        = false;
     smtc_real_clear_join_channel_preference( lr1_mac_obj->real );
     smtc_real_clear_first_join_tx( lr1_mac_obj->real );
@@ -578,9 +579,10 @@ void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
 /**************************************************/
 /*      LoraWan  Last Join Channel  Getter        */
 /**************************************************/
-bool lr1mac_core_last_join_channel_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t* frequency_hz, uint8_t* data_rate )
+bool lr1mac_core_last_join_channel_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t* frequency_hz, uint8_t* data_rate,
+                                        uint8_t* subband )
 {
-    if( ( lr1_mac_obj == NULL ) || ( frequency_hz == NULL ) || ( data_rate == NULL ) )
+    if( ( lr1_mac_obj == NULL ) || ( frequency_hz == NULL ) || ( data_rate == NULL ) || ( subband == NULL ) )
     {
         return false;
     }
@@ -590,6 +592,7 @@ bool lr1mac_core_last_join_channel_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t* 
     }
     *frequency_hz = lr1_mac_obj->last_join_frequency_hz;
     *data_rate    = lr1_mac_obj->last_join_dr;
+    *subband      = lr1_mac_obj->last_join_subband;
     return true;
 }
 #endif

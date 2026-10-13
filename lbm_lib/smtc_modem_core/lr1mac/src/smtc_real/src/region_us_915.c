@@ -278,47 +278,64 @@ static bool region_us_915_join_preference_channel_select( smtc_real_t* real, uin
     }
 
     // A preference budget of zero disables the fast path without erasing the record.
-    const uint32_t frequency_hz = real->join_preference.frequency_hz;
-    const uint8_t  data_rate    = real->join_preference.data_rate;
-    uint8_t        channel_idx  = 0;
-    bool           channel_found = false;
-
-    if( data_rate == DR4 )
+    const uint8_t preferred_bank = real->join_preference.subband;
+    if( preferred_bank >= BANK_MAX_US915 )
     {
-        // 500KHz channels: invert region_us_915_get_tx_frequency_channel( )
-        const uint8_t first_500k_idx = real_const.const_number_of_tx_channel - 8;
-        if( ( frequency_hz >= DEFAULT_TX_FREQ_500_START_US_915 ) &&
-            ( ( ( frequency_hz - DEFAULT_TX_FREQ_500_START_US_915 ) % DEFAULT_TX_STEP_500_US_915 ) == 0 ) )
-        {
-            channel_idx = first_500k_idx +
-                          ( uint8_t ) ( ( frequency_hz - DEFAULT_TX_FREQ_500_START_US_915 ) /
-                                        DEFAULT_TX_STEP_500_US_915 );
-            channel_found = ( channel_idx >= first_500k_idx ) && ( channel_idx < real_const.const_number_of_tx_channel );
-        }
-    }
-    else if( frequency_hz >= DEFAULT_TX_FREQ_125_START_US_915 )
-    {
-        // 125KHz channels: invert region_us_915_get_tx_frequency_channel( )
-        if( ( ( frequency_hz - DEFAULT_TX_FREQ_125_START_US_915 ) % DEFAULT_TX_STEP_125_US_915 ) == 0 )
-        {
-            channel_idx = ( uint8_t ) ( ( frequency_hz - DEFAULT_TX_FREQ_125_START_US_915 ) /
-                                        DEFAULT_TX_STEP_125_US_915 );
-            channel_found = channel_idx < real_const.const_number_of_tx_channel - 8;
-        }
-    }
-
-    if( ( channel_found == false ) || ( SMTC_GET_BIT8( channel_index_enabled, channel_idx ) != CHANNEL_ENABLED ) )
-    {
-        // The saved channel is not usable with the current region configuration:
-        // give up on the preference and let normal channel hopping take over.
+        // Not a valid bank with the current region configuration: give up on the
+        // preference and let normal channel hopping take over.
         real->join_preference.active = false;
         return false;
     }
 
-    tx_channel_idx      = channel_idx;
-    *out_tx_data_rate   = data_rate;
-    *out_tx_frequency   = region_us_915_get_tx_frequency_channel( real, channel_idx );
-    *out_rx1_frequency  = region_us_915_get_rx1_frequency_channel( real, channel_idx );
+    // Same per-bank refresh as the normal join hop loop: once every channel of
+    // the preferred bank has been drawn, refill from the enabled mask so the
+    // preference keeps hopping inside the bank until its budget runs out.
+    if( snapshot_channel_tx_mask[preferred_bank] == 0 )
+    {
+        snapshot_channel_tx_mask[preferred_bank] = channel_index_enabled[preferred_bank];
+    }
+
+    uint8_t active_channel_index[8];
+    uint8_t active_channel_nb    = 0;
+    for( uint8_t i = preferred_bank * 8; i < ( ( preferred_bank * 8 ) + 8 ); i++ )
+    {
+        if( ( SMTC_GET_BIT8( snapshot_channel_tx_mask, i ) == CHANNEL_ENABLED ) &&
+            ( SMTC_GET_BIT8( channel_index_enabled, i ) == CHANNEL_ENABLED ) )
+        {
+            active_channel_index[active_channel_nb] = i;
+            active_channel_nb++;
+        }
+    }
+
+    if( active_channel_nb == 0 )
+    {
+        // Every channel of the preferred bank is masked out under the current
+        // configuration. Nothing was transmitted, so this is not a proven
+        // failure: keep the attempt budget intact (the saved record stays
+        // eligible should the bank become enabled again) and let normal
+        // channel hopping take over.
+        real->join_preference.active = false;
+        return false;
+    }
+
+    uint8_t channel_idx;
+    if( preferred_bank == BANK_8_500_US915 )
+    {
+        // 500KHz bank: first available channel, like the normal hop loop
+        channel_idx     = active_channel_index[0];
+        *out_tx_data_rate = DR4;
+    }
+    else
+    {
+        // 125KHz banks: random pick among enabled channels, like the normal hop loop
+        const uint8_t temp = smtc_modem_hal_get_random_nb_in_range( 0, ( active_channel_nb - 1 ) ) % active_channel_nb;
+        channel_idx        = active_channel_index[temp];
+        *out_tx_data_rate  = DR0;
+    }
+
+    tx_channel_idx     = channel_idx;
+    *out_tx_frequency  = region_us_915_get_tx_frequency_channel( real, channel_idx );
+    *out_rx1_frequency = region_us_915_get_rx1_frequency_channel( real, channel_idx );
 
     // Retain attribution even when the final selection disarms the preference.
     real->join_preference.attempt_state = SMTC_REAL_JOIN_PREFERENCE_SELECTED;
@@ -328,7 +345,8 @@ static bool region_us_915_join_preference_channel_select( smtc_real_t* real, uin
         real->join_preference.active = false;
     }
 
-    SMTC_MODEM_HAL_TRACE_PRINTF_DEBUG( "join preference channel %u freq %u\n", channel_idx, *out_tx_frequency );
+    SMTC_MODEM_HAL_TRACE_PRINTF_DEBUG( "join preference bank %u channel %u freq %u\n", preferred_bank, channel_idx,
+                                       *out_tx_frequency );
     return true;
 }
 #endif

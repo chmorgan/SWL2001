@@ -178,10 +178,11 @@ typedef struct lr1_stack_mac_s
 #if LORAWAN_JOIN_CHANNEL_PREFERENCE
     // Uplink parameters of the join request that received the last join accept.
     // Read by the application through smtc_modem_get_last_join_channel( ) so it
-    // can persist and later prefer this channel with
+    // can persist and later prefer this subband with
     // smtc_modem_set_join_channel_preference( ).
     uint32_t last_join_frequency_hz;
     uint8_t  last_join_dr;
+    uint8_t  last_join_subband;  // US915 bank of the join TX or SMTC_REAL_JOIN_PREFERENCE_SUBBAND_NONE
     bool     last_join_valid;
 #endif
 

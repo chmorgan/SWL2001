@@ -338,6 +338,8 @@ typedef struct smtc_real_diagnostic_s
 #endif
 
 #if LORAWAN_JOIN_CHANNEL_PREFERENCE
+#define SMTC_REAL_JOIN_PREFERENCE_SUBBAND_NONE 0xFF  // No preferred bank/subband armed
+
 typedef enum smtc_real_join_preference_attempt_e
 {
     SMTC_REAL_JOIN_PREFERENCE_NONE = 0,
@@ -348,9 +350,8 @@ typedef enum smtc_real_join_preference_attempt_e
 typedef struct smtc_real_join_preference_s
 {
     bool     active;             // Preference armed for the current join session
-    uint32_t frequency_hz;       // Preferred join-request uplink frequency
-    uint8_t  data_rate;          // Preferred join-request data rate
-    uint8_t  attempts_remaining; // Preferred channel selections still allowed
+    uint8_t  subband;            // Preferred US915 bank (us_915_channels_bank_t) or SMTC_REAL_JOIN_PREFERENCE_SUBBAND_NONE
+    uint8_t  attempts_remaining; // Preferred bank selections still allowed
     uint8_t  failures_remaining; // Completed failed transmissions needed to prove exhaustion
     smtc_real_join_preference_attempt_t attempt_state;
 } smtc_real_join_preference_t;
