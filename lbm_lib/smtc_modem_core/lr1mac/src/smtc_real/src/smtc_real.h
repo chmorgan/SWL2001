@@ -231,6 +231,48 @@ void smtc_real_init_channel_mask( smtc_real_t* real );
  */
 void smtc_real_init_join_snapshot_channel_mask( smtc_real_t* real );
 
+#if LORAWAN_JOIN_BANK_PREFERENCE
+/**
+ * \brief Arm a join-bank preference for the next join attempts
+ *
+ * While armed, up to \p attempts_remaining join channel selections are served by
+ * the region's normal channel hopping restricted to the preferred bank
+ * (when it still has enabled channels) before the region falls back to its
+ * normal channel selection. The preference lasts for the current join session
+ * only; it is cleared by smtc_real_clear_join_bank_preference( ).
+ * Preprocessing failures or aborts can reduce the number of actual transmissions.
+ *
+ * \param [IN] real              Real instance
+ * \param [IN] bank              Preferred US915 bank (us_915_channels_bank_t)
+ * \param [IN] attempts_remaining Number of selections allowed on the preferred bank
+ */
+void smtc_real_set_join_bank_preference( smtc_real_t* real, uint8_t bank, uint8_t attempts_remaining );
+
+/**
+ * \brief Disarm any join-bank preference
+ *
+ * \param [IN] real  Real instance
+ */
+void smtc_real_clear_join_bank_preference( smtc_real_t* real );
+
+/** Clear attribution for an interrupted or replaced attempt, retaining session accounting. */
+void smtc_real_join_preference_abort( smtc_real_t* real );
+/** Mark a selected preferred join request as actually transmitted. */
+void smtc_real_join_preference_tx_done( smtc_real_t* real );
+/** Complete an attempt after join-accept processing; success clears the preference. */
+void smtc_real_join_preference_complete( smtc_real_t* real, bool joined, bool normal_completion );
+/** True only when every configured preferred selection transmitted and failed normally. */
+bool smtc_real_get_join_preference_exhausted( const smtc_real_t* real );
+
+/** Start first-TX diagnostics for a new explicit join session, retaining the armed preference. */
+void smtc_real_clear_first_join_tx( smtc_real_t* real );
+/** Capture only the first completed join-request transmission, before its attribution is cleared. */
+void smtc_real_capture_first_join_tx( smtc_real_t* real, uint32_t frequency_hz, uint8_t data_rate );
+/** Retained across automatic retries and successful join; false until an actual join TX completes. */
+bool smtc_real_get_first_join_tx( const smtc_real_t* real, uint32_t* frequency_hz, uint8_t* data_rate,
+                                  bool* used_preference );
+#endif
+
 /**
  * \brief
  * \remark
