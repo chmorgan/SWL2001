@@ -889,6 +889,12 @@ bool lr1_stack_mac_rx_timer_configure( lr1_stack_mac_t* lr1_mac, const rx_win_ty
             delay_ms + ( int32_t ) ( lr1_mac->isr_tx_done_radio_timestamp - tcurrent_ms ) + lr1_mac->rx_offset_ms;
         if( talarm_ms < 0 )
         {
+#if LORAWAN_JOIN_BANK_PREFERENCE
+            if( lr1_mac->tx_mtype == JOIN_REQUEST )
+            {
+                smtc_real_join_preference_abort( lr1_mac->real );
+            }
+#endif
             lr1_mac->radio_process_state = RADIOSTATE_RX_FINISHED;
             return true;
         }
@@ -1572,6 +1578,40 @@ status_lorawan_t lr1_stack_mac_join_accept( lr1_stack_mac_t* lr1_mac )
     }
 
     lr1_mac->join_status = JOINED;
+
+#if LORAWAN_JOIN_BANK_PREFERENCE
+    // Publish the successful uplink channel only after all JoinAccept validation.
+    lr1_mac->last_join_frequency_hz = lr1_mac->tx_frequency;
+    lr1_mac->last_join_dr           = lr1_mac->tx_data_rate;
+    lr1_mac->last_join_bank         = SMTC_REAL_JOIN_PREFERENCE_BANK_NONE;
+#if defined( REGION_US_915 )
+    if( lr1_mac->real->region_type == SMTC_REAL_REGION_US_915 )
+    {
+        if( ( lr1_mac->tx_data_rate == DR4 ) &&
+            ( lr1_mac->tx_frequency >= DEFAULT_TX_FREQ_500_START_US_915 ) )
+        {
+            const uint32_t offset = lr1_mac->tx_frequency - DEFAULT_TX_FREQ_500_START_US_915;
+            if( ( offset % DEFAULT_TX_STEP_500_US_915 == 0 ) &&
+                ( offset / DEFAULT_TX_STEP_500_US_915 < 8 ) )
+            {
+                // Channel 64 + bank shares a physical bank with its eight 125 kHz channels.
+                lr1_mac->last_join_bank = offset / DEFAULT_TX_STEP_500_US_915;
+            }
+        }
+        else if( ( lr1_mac->tx_data_rate <= DR3 ) &&
+                 ( lr1_mac->tx_frequency >= DEFAULT_TX_FREQ_125_START_US_915 ) )
+        {
+            const uint32_t offset = lr1_mac->tx_frequency - DEFAULT_TX_FREQ_125_START_US_915;
+            if( ( offset % DEFAULT_TX_STEP_125_US_915 == 0 ) &&
+                ( offset / DEFAULT_TX_STEP_125_US_915 < NUMBER_OF_TX_CHANNEL_US_915 - 8 ) )
+            {
+                lr1_mac->last_join_bank = ( offset / DEFAULT_TX_STEP_125_US_915 ) / 8;
+            }
+        }
+    }
+#endif  // defined( REGION_US_915 )
+    lr1_mac->last_join_valid        = true;
+#endif
 
 #if LORAWAN_FAILURE_DIAGNOSTICS
     lr1_mac->join_diagnostic.accepted = true;
