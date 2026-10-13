@@ -87,6 +87,10 @@ extern "C" {
 #define LORAWAN_FAILURE_DIAGNOSTICS 0
 #endif
 
+#ifndef LORAWAN_JOIN_BANK_PREFERENCE
+#define LORAWAN_JOIN_BANK_PREFERENCE 0
+#endif
+
 #if defined( RP2_101 )
 #define RP_VERSION_REVISION ( 2 )
 #define RP_VERSION_MAJOR ( 1 )
@@ -333,6 +337,33 @@ typedef struct smtc_real_diagnostic_s
 } smtc_real_diagnostic_t;
 #endif
 
+#if LORAWAN_JOIN_BANK_PREFERENCE
+#define SMTC_REAL_JOIN_PREFERENCE_BANK_NONE 0xFF  // No preferred bank armed
+
+typedef enum smtc_real_join_preference_attempt_e
+{
+    SMTC_REAL_JOIN_PREFERENCE_NONE = 0,
+    SMTC_REAL_JOIN_PREFERENCE_SELECTED,
+    SMTC_REAL_JOIN_PREFERENCE_TRANSMITTED,
+} smtc_real_join_preference_attempt_t;
+
+typedef struct smtc_real_join_preference_s
+{
+    bool     active;             // Preference armed for the current join session
+    uint8_t  bank;               // Preferred US915 bank (us_915_channels_bank_t) or SMTC_REAL_JOIN_PREFERENCE_BANK_NONE
+    uint8_t  attempts_remaining; // Preferred bank selections still allowed
+    uint8_t  failures_remaining; // Completed failed transmissions needed to prove exhaustion
+    smtc_real_join_preference_attempt_t attempt_state;
+} smtc_real_join_preference_t;
+
+typedef struct smtc_real_first_join_tx_s
+{
+    uint32_t frequency_hz; // Zero until the first actual join TX of this session
+    uint8_t  data_rate;
+    bool     used_preference;
+} smtc_real_first_join_tx_t;
+#endif
+
 typedef struct smtc_real_s
 {
     smtc_real_region_types_t region_type;
@@ -341,6 +372,11 @@ typedef struct smtc_real_s
 
 #if LORAWAN_FAILURE_DIAGNOSTICS
     smtc_real_diagnostic_t diagnostic;
+#endif
+
+#if LORAWAN_JOIN_BANK_PREFERENCE
+    smtc_real_join_preference_t join_preference;
+    smtc_real_first_join_tx_t   first_join_tx;
 #endif
 
     union smtc_real_region_u
