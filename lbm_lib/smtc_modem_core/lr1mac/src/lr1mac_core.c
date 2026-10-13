@@ -264,6 +264,15 @@ lr1mac_states_t lr1mac_core_process( lr1_stack_mac_t* lr1_mac_obj )
         case RADIOSTATE_TX_FINISHED:
         {
             DBG_PRINT_WITH_LINE( "%s", " TX DONE" );
+#if LORAWAN_JOIN_BANK_PREFERENCE
+            if( ( lr1_mac_obj->tx_mtype == JOIN_REQUEST ) &&
+                ( lr1_mac_obj->rp_planner_status == RP_STATUS_TX_DONE ) )
+            {
+                smtc_real_capture_first_join_tx(
+                    lr1_mac_obj->real, lr1_mac_obj->tx_frequency, lr1_mac_obj->tx_data_rate );
+                smtc_real_join_preference_tx_done( lr1_mac_obj->real );
+            }
+#endif
             lr1_mac_obj->lr1mac_state               = LWPSTATE_RX1;
             lr1_mac_obj->tx_duty_cycle_timestamp_ms = lr1_mac_obj->isr_tx_done_radio_timestamp;
             lr1_mac_obj->tx_duty_cycle_time_off_ms =
@@ -550,6 +559,14 @@ void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
     lr1_mac_obj->real->diagnostic.valid = false;
     lr1_mac_obj->real->diagnostic.cflist_mask_applied = false;
 #endif
+#if LORAWAN_JOIN_BANK_PREFERENCE
+    lr1_mac_obj->last_join_frequency_hz = 0;
+    lr1_mac_obj->last_join_dr           = 0;
+    lr1_mac_obj->last_join_bank         = SMTC_REAL_JOIN_PREFERENCE_BANK_NONE;
+    lr1_mac_obj->last_join_valid        = false;
+    smtc_real_clear_join_bank_preference( lr1_mac_obj->real );
+    smtc_real_clear_first_join_tx( lr1_mac_obj->real );
+#endif
     lr1mac_core_abort( lr1_mac_obj );
     smtc_real_init_join_snapshot_channel_mask( lr1_mac_obj->real );
     lr1_mac_obj->retry_join_cpt = 0;
@@ -557,6 +574,28 @@ void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
     // Revert ADR modem in case the leave network command is called before join success
     lr1_mac_obj->adr_mode_select = lr1_mac_obj->adr_mode_select_tmp;
 }
+
+#if LORAWAN_JOIN_BANK_PREFERENCE
+/**************************************************/
+/*      LoraWan  Last Join Channel  Getter        */
+/**************************************************/
+bool lr1mac_core_last_join_channel_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t* frequency_hz, uint8_t* data_rate,
+                                        uint8_t* bank )
+{
+    if( ( lr1_mac_obj == NULL ) || ( frequency_hz == NULL ) || ( data_rate == NULL ) || ( bank == NULL ) )
+    {
+        return false;
+    }
+    if( lr1_mac_obj->last_join_valid == false )
+    {
+        return false;
+    }
+    *frequency_hz = lr1_mac_obj->last_join_frequency_hz;
+    *data_rate    = lr1_mac_obj->last_join_dr;
+    *bank         = lr1_mac_obj->last_join_bank;
+    return true;
+}
+#endif
 
 /**************************************************/
 /*         LoraWan  SendPayload  Method           */
@@ -1322,6 +1361,9 @@ static void copy_user_payload( lr1_stack_mac_t* lr1_mac_obj, const uint8_t* data
 
 void lr1mac_core_abort( lr1_stack_mac_t* lr1_mac_obj )
 {
+#if LORAWAN_JOIN_BANK_PREFERENCE
+    smtc_real_join_preference_abort( lr1_mac_obj->real );
+#endif
     lr1_mac_obj->valid_rx_packet     = NO_MORE_VALID_RX_PACKET;
     lr1_mac_obj->type_of_ans_to_send = NOFRAME_TOSEND;
     memset( &lr1_mac_obj->rx_down_data, 0, sizeof( lr1_mac_obj->rx_down_data ) );
@@ -1333,6 +1375,11 @@ void lr1mac_core_abort( lr1_stack_mac_t* lr1_mac_obj )
 
 static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
 {
+#if LORAWAN_JOIN_BANK_PREFERENCE
+    const bool join_attempt =
+        ( lr1_mac_obj->tx_mtype == JOIN_REQUEST ) && ( lr1_mac_obj->join_status == JOINING );
+    const bool normal_completion = lr1_mac_obj->radio_process_state != RADIOSTATE_ABORTED_BY_RP;
+#endif
     lr1_mac_obj->radio_process_state = RADIOSTATE_IDLE;
 
     lr1_mac_obj->rx_down_data.rx_metadata.is_a_join_accept = false;
@@ -1366,6 +1413,13 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
         lr1_stack_mac_cmd_parse( lr1_mac_obj );
     }
 
+#if LORAWAN_JOIN_BANK_PREFERENCE
+    if( join_attempt )
+    {
+        smtc_real_join_preference_complete(
+            lr1_mac_obj->real, lr1_mac_obj->join_status == JOINED, normal_completion );
+    }
+#endif
     lr1_stack_mac_update( lr1_mac_obj );
 
     /// If those MAC commands are not acked, set as not requested ///
