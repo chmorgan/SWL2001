@@ -192,6 +192,37 @@ join_status_t lorawan_api_isjoined( uint8_t stack_id );
  */
 void lorawan_api_join_status_clear( uint8_t stack_id );
 
+#if LORAWAN_JOIN_BANK_PREFERENCE
+/**
+ * @brief Get the channel used by the most recent successful join
+ *
+ * @param [in]  stack_id       Multiprotocol service identifier
+ * @param [out] frequency_hz   Frequency in Hz of the join accept Tx channel
+ * @param [out] data_rate      Data rate used on the join accept Tx channel
+ * @param [out] bank           Physical US915 bank [0:7] containing the Tx channel (0xFF if unknown)
+ *
+ * @return  true if a join channel was captured, false otherwise
+ */
+bool lorawan_api_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
+                                        uint8_t* bank );
+
+/**
+ * @brief Arm a join bank preference for the next join session
+ *
+ * Each physical bank [0:7] contains eight 125 kHz channels and channel 64 + bank
+ * at 500 kHz. The region draws unused enabled 125 kHz channels randomly at DR0,
+ * then its associated 500 kHz channel at DR4, refilling only that bank after all
+ * its enabled channels have been used. Invalid banks are ignored; 0xFF clears.
+ * After attempts_remaining selections, fall back to normal hopping.
+ */
+void lorawan_api_set_join_bank_preference( uint8_t stack_id, uint8_t bank, uint8_t attempts_remaining );
+/** Sticky until success or session reset; excludes launch failures and interrupted attempts. */
+bool lorawan_api_get_join_bank_preference_exhausted( uint8_t stack_id );
+void lorawan_api_clear_first_join_tx( uint8_t stack_id );
+bool lorawan_api_get_first_join_tx( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
+                                    bool* used_preference );
+#endif
+
 /**
  * @brief Set datarate strategy
  * @remark The current implementation support 4 different dataRate Strategy :
