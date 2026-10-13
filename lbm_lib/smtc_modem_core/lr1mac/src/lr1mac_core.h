@@ -91,6 +91,21 @@ status_lorawan_t lr1mac_core_join( lr1_stack_mac_t* lr1_mac_obj, uint32_t target
  */
 void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj );
 
+#if LORAWAN_JOIN_BANK_PREFERENCE
+/**
+ * @brief Get the channel used by the most recent successful join
+ *
+ * @param [in]  lr1_mac_obj    Pointer to the MAC layer context
+ * @param [out] frequency_hz   Frequency in Hz of the join accept Tx channel
+ * @param [out] data_rate      Data rate used on the join accept Tx channel
+ * @param [out] bank           US915 bank containing the Tx channel (0xFF if unknown)
+ *
+ * @return  true if a join channel was captured, false otherwise
+ */
+bool lr1mac_core_last_join_channel_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t* frequency_hz, uint8_t* data_rate,
+                                        uint8_t* bank );
+#endif
+
 /**
  * @brief abort LoRaWAN task
  * @remark Tx, Rx will be aborted
