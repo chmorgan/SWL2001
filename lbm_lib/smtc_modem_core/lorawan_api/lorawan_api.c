@@ -231,6 +231,20 @@ void lorawan_api_join_status_clear( uint8_t stack_id )
     lr1mac_core_join_status_clear( &lr1_mac_obj[stack_id] );
 }
 
+#if LORAWAN_JOIN_TX_TRACE
+void lorawan_api_join_tx_trace_session_begin( uint8_t stack_id )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    lr1mac_core_join_tx_trace_session_begin( &lr1_mac_obj[stack_id] );
+}
+
+bool lorawan_api_get_join_tx_trace( uint8_t stack_id, smtc_modem_join_tx_trace_t* trace )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    return lr1mac_core_join_tx_trace_get( &lr1_mac_obj[stack_id], trace );
+}
+#endif
+
 #if LORAWAN_JOIN_BANK_PREFERENCE
 bool lorawan_api_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
                                         uint8_t* bank )
