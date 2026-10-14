@@ -45,6 +45,13 @@ extern "C" {
 #include "smtc_real_defs.h"
 #include "radio_planner.h"
 
+#ifndef LORAWAN_JOIN_TX_TRACE
+#define LORAWAN_JOIN_TX_TRACE 0
+#endif
+#if LORAWAN_JOIN_TX_TRACE
+#include "smtc_modem_join_tx_trace.h"
+#endif
+
 /*
  * -----------------------------------------------------------------------------
  * --- PUBLIC CONSTANTS --------------------------------------------------------
@@ -174,6 +181,12 @@ typedef struct lr1_stack_mac_s
     uint16_t dev_nonce;
     uint8_t  join_nonce[6];  // Join_nonce + NetId
     uint8_t  cf_list[16];
+
+#if LORAWAN_JOIN_TX_TRACE
+    // Runtime only. Records actual radio TX_DONE, rather than channel selections.
+    smtc_modem_join_tx_trace_t join_tx_trace;
+    uint32_t                  join_tx_trace_pending_sequence;
+#endif
 
 #if LORAWAN_JOIN_BANK_PREFERENCE
     // Uplink parameters of the join request that received the last join accept.
