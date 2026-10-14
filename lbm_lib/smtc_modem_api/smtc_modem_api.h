@@ -46,6 +46,7 @@ extern "C" {
 
 #include <stdint.h>   // C99 types
 #include <stdbool.h>  // bool type
+#include "smtc_modem_join_tx_trace.h"
 
 /*
  * -----------------------------------------------------------------------------
@@ -1274,6 +1275,26 @@ smtc_modem_return_code_t smtc_modem_get_join_bank_preference_exhausted( uint8_t 
  */
 smtc_modem_return_code_t smtc_modem_get_first_join_tx( uint8_t stack_id, uint32_t* frequency_hz,
                                                        uint8_t* data_rate, bool* used_preference );
+
+/**
+ * @brief Copy the actual join transmission trace of the current explicit session
+ *
+ * Requires LORAWAN_JOIN_TX_TRACE. The latest 64 actual TX_DONE records are retained
+ * oldest to newest; aborted or merely selected channels are never recorded.
+ * The trace is cleared by an accepted join_network request, leave network, or
+ * stack initialization. Its session_id is local to that initialized stack.
+ * An empty enabled trace is a successful snapshot with count zero.
+ * A failed attempt's retry deadline becomes valid only after receive processing
+ * completes; successful or interrupted attempts do not publish a retry deadline.
+ * Call from the modem owner task; this function does not provide cross-task locking.
+ *
+ * @retval SMTC_MODEM_RC_OK               Snapshot copied to trace
+ * @retval SMTC_MODEM_RC_INVALID          trace is NULL
+ * @retval SMTC_MODEM_RC_INVALID_STACK_ID Invalid stack identifier
+ * @retval SMTC_MODEM_RC_BUSY             Modem is in test mode
+ * @retval SMTC_MODEM_RC_FAIL             Join transmission tracing is not compiled in
+ */
+smtc_modem_return_code_t smtc_modem_get_join_tx_trace( uint8_t stack_id, smtc_modem_join_tx_trace_t* trace );
 
 /**
  * @brief Get the current enabled Datarate in regards of Uplink ChMash and DwellTime
