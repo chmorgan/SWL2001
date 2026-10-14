@@ -91,6 +91,11 @@ status_lorawan_t lr1mac_core_join( lr1_stack_mac_t* lr1_mac_obj, uint32_t target
  */
 void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj );
 
+#if LORAWAN_JOIN_TX_TRACE
+void lr1mac_core_join_tx_trace_session_begin( lr1_stack_mac_t* lr1_mac_obj );
+bool lr1mac_core_join_tx_trace_get( const lr1_stack_mac_t* lr1_mac_obj, smtc_modem_join_tx_trace_t* trace );
+#endif
+
 #if LORAWAN_JOIN_BANK_PREFERENCE
 /**
  * @brief Get the channel used by the most recent successful join
