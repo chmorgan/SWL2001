@@ -758,6 +758,9 @@ smtc_modem_return_code_t smtc_modem_join_network( uint8_t stack_id )
     }
     else if( lorawan_api_get_activation_mode( stack_id ) == ACTIVATION_MODE_ABP )
     {
+#if LORAWAN_JOIN_TX_TRACE
+        lorawan_api_join_tx_trace_session_begin( stack_id );
+#endif
 #if LORAWAN_JOIN_BANK_PREFERENCE
         lorawan_api_clear_first_join_tx( stack_id );
 #endif
@@ -768,6 +771,9 @@ smtc_modem_return_code_t smtc_modem_join_network( uint8_t stack_id )
     else
     {
         // Launch OTAA task
+#if LORAWAN_JOIN_TX_TRACE
+        lorawan_api_join_tx_trace_session_begin( stack_id );
+#endif
 #if LORAWAN_JOIN_BANK_PREFERENCE
         lorawan_api_clear_first_join_tx( stack_id );
 #endif
@@ -775,6 +781,21 @@ smtc_modem_return_code_t smtc_modem_join_network( uint8_t stack_id )
     }
 
     return return_code;
+}
+
+smtc_modem_return_code_t smtc_modem_get_join_tx_trace( uint8_t stack_id, smtc_modem_join_tx_trace_t* trace )
+{
+    RETURN_BUSY_IF_TEST_MODE( );
+    RETURN_INVALID_IF_NULL( trace );
+    if( stack_id >= NUMBER_OF_STACKS )
+    {
+        return SMTC_MODEM_RC_INVALID_STACK_ID;
+    }
+#if LORAWAN_JOIN_TX_TRACE
+    return lorawan_api_get_join_tx_trace( stack_id, trace ) ? SMTC_MODEM_RC_OK : SMTC_MODEM_RC_INVALID;
+#else
+    return SMTC_MODEM_RC_FAIL;
+#endif
 }
 
 #if LORAWAN_JOIN_BANK_PREFERENCE
