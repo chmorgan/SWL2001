@@ -192,6 +192,11 @@ join_status_t lorawan_api_isjoined( uint8_t stack_id );
  */
 void lorawan_api_join_status_clear( uint8_t stack_id );
 
+#if LORAWAN_JOIN_TX_TRACE
+void lorawan_api_join_tx_trace_session_begin( uint8_t stack_id );
+bool lorawan_api_get_join_tx_trace( uint8_t stack_id, smtc_modem_join_tx_trace_t* trace );
+#endif
+
 #if LORAWAN_JOIN_BANK_PREFERENCE
 /**
  * @brief Get the channel used by the most recent successful join
