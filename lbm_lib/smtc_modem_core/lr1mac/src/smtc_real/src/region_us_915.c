@@ -960,18 +960,11 @@ static void region_us_915_channel_mask_set_after_join( smtc_real_t* real )
     memcpy( snapshot_channel_tx_mask, unwrapped_channel_mask, BANK_MAX_US915 );
 
 #if ( BSP_DBG_TRACE == BSP_FEATURE_ON )
-    SMTC_MODEM_HAL_TRACE_PRINTF_DEBUG( "Ch 125kHz\n" );
-    for( uint8_t i = 0; i < NUMBER_OF_TX_CHANNEL_US_915 - 8; i++ )
-    {
-        SMTC_MODEM_HAL_TRACE_PRINTF_DEBUG( " %d ", SMTC_GET_BIT8( channel_index_enabled, i ) );
-    }
-    SMTC_MODEM_HAL_TRACE_PRINTF_DEBUG( " \n" );
-    SMTC_MODEM_HAL_TRACE_PRINTF_DEBUG( "Ch 500kHz\n" );
-    for( uint8_t i = NUMBER_OF_TX_CHANNEL_US_915 - 8; i < NUMBER_OF_TX_CHANNEL_US_915; i++ )
-    {
-        SMTC_MODEM_HAL_TRACE_PRINTF_DEBUG( " %d ", SMTC_GET_BIT8( channel_index_enabled, i ) );
-    }
-    SMTC_MODEM_HAL_TRACE_PRINTF_DEBUG( " \n" );
+    SMTC_MODEM_HAL_TRACE_PRINTF(
+        "US915_CHANNEL_MASK mask125=%02x%02x%02x%02x%02x%02x%02x%02x mask500=%02x\n",
+        channel_index_enabled[0], channel_index_enabled[1], channel_index_enabled[2], channel_index_enabled[3],
+        channel_index_enabled[4], channel_index_enabled[5], channel_index_enabled[6], channel_index_enabled[7],
+        channel_index_enabled[8] );
 #endif
 
     first_ch_mask_received++;
