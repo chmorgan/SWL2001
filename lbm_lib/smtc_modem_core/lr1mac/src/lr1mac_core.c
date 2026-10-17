@@ -1586,7 +1586,9 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
 #if LORAWAN_JOIN_TX_TRACE
     if( join_attempt )
     {
-        join_tx_trace_complete( lr1_mac_obj, lr1_mac_obj->join_status == NOT_JOINED, normal_completion );
+        // A fatal post-JoinAccept rejection has no next retry deadline.
+        join_tx_trace_complete( lr1_mac_obj, lr1_mac_obj->join_status == NOT_JOINED && !post_join_dr_failed,
+                                normal_completion );
     }
 #endif
 
