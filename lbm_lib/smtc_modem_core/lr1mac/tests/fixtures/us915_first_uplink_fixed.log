@@ -1,0 +1,31 @@
+# US915 DR4 first-uplink validation: three independent boots, 2026-10-16 EDT
+# Allowlisted record bodies only; omitted records are not represented by adjacency.
+# Raw snapshot hashes, source positions, boot identities and acceptance gates are in
+# us915_first_uplink_validation.json. No raw JoinAccept CFList bytes were captured.
+
+# Case 2: 2026-10-16 21:57:23 EDT
+Tx  LoRa at 284795 ms: freq:904600000, SF8, BW500, len 23 bytes
+TX DONE
+update join procedure
+US915_CHANNEL_MASK mask125=00ff000000000000 mask500=00
+Event: JOINED
+Tx  LoRa at 295747 ms: freq:904900000, SF7, BW125, len 14 bytes
+TX DONE
+
+# Case 3: 2026-10-16 22:03:56 EDT
+Tx  LoRa at 299137 ms: freq:904600000, SF8, BW500, len 23 bytes
+TX DONE
+update join procedure
+US915_CHANNEL_MASK mask125=00ff000000000000 mask500=00
+Event: JOINED
+Tx  LoRa at 305030 ms: freq:904700000, SF7, BW125, len 14 bytes
+TX DONE
+
+# Case 4: 2026-10-16 22:10:12 EDT
+Tx  LoRa at 264996 ms: freq:904600000, SF8, BW500, len 23 bytes
+TX DONE
+update join procedure
+US915_CHANNEL_MASK mask125=00ff000000000000 mask500=00
+Event: JOINED
+Tx  LoRa at 271798 ms: freq:903900000, SF7, BW125, len 14 bytes
+TX DONE

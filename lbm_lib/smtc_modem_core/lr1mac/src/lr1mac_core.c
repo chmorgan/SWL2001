@@ -1493,6 +1493,37 @@ void lr1mac_core_abort( lr1_stack_mac_t* lr1_mac_obj )
     rp_task_abort( lr1_mac_obj->rp, lr1_mac_obj->stack_id4rp );
 }
 
+static status_lorawan_t lr1mac_select_post_join_dr( smtc_real_t* real, uint8_t join_dr, uint8_t* selected_dr )
+{
+    uint8_t candidate = join_dr;
+    if( smtc_real_is_tx_dr_acceptable( real, candidate, false ) != OKLORAWAN )
+    {
+        candidate = smtc_real_decrement_dr_simulation( real, join_dr );
+        if( smtc_real_is_tx_dr_acceptable( real, candidate, false ) != OKLORAWAN )
+        {
+            // If regional backoff has no usable lower rate, use the lowest acceptable enabled rate.
+            const uint16_t supported_dr_mask = smtc_real_mask_tx_dr_channel_up_dwell_time_check( real );
+            bool           found             = false;
+            for( uint8_t dr = 0; dr < 16; dr++ )
+            {
+                if( ( supported_dr_mask & ( 1U << dr ) ) != 0 &&
+                    smtc_real_is_tx_dr_acceptable( real, dr, false ) == OKLORAWAN )
+                {
+                    candidate = dr;
+                    found     = true;
+                    break;
+                }
+            }
+            if( found == false )
+            {
+                return ERRORLORAWAN;
+            }
+        }
+    }
+    *selected_dr = candidate;
+    return OKLORAWAN;
+}
+
 static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
 {
 #if LORAWAN_JOIN_BANK_PREFERENCE || LORAWAN_JOIN_TX_TRACE
@@ -1500,6 +1531,7 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
         ( lr1_mac_obj->tx_mtype == JOIN_REQUEST ) && ( lr1_mac_obj->join_status == JOINING );
     const bool normal_completion = lr1_mac_obj->radio_process_state != RADIOSTATE_ABORTED_BY_RP;
 #endif
+    bool post_join_dr_failed = false;
     lr1_mac_obj->radio_process_state = RADIOSTATE_IDLE;
 
     lr1_mac_obj->rx_down_data.rx_metadata.is_a_join_accept = false;
@@ -1509,18 +1541,28 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
         SMTC_MODEM_HAL_TRACE_PRINTF( " update join procedure\n" );
         if( lr1_stack_mac_join_accept( lr1_mac_obj ) == OKLORAWAN )
         {
-            lr1_mac_obj->rx_down_data.rx_payload_size              = 0;
-            lr1_mac_obj->rx_down_data.rx_metadata.is_a_join_accept = true;
-            lr1_mac_obj->rx_down_data.rx_metadata.rx_fport_present = false;
-
             //@note because datarate Distribution has been changed during join
             lr1_mac_obj->adr_mode_select = lr1_mac_obj->adr_mode_select_tmp;
-            // copy the join data rate to the default data_rate_adr => the first uplink will be transmit with the join
-            // dr (ease GW one chanel)
-            lr1_mac_obj->tx_data_rate_adr = lr1_mac_obj->tx_data_rate;
-            smtc_real_set_dr_distribution( lr1_mac_obj->real, lr1_mac_obj->adr_mode_select_tmp,
-                                           &lr1_mac_obj->nb_trans );
-            lr1mac_core_context_save( lr1_mac_obj );
+            // A CFList may remove the JoinRequest's channel class (US915 DR4 with only 125 kHz channels left).
+            // Initialize retained ADR against the new mask; keep the actual join DR for diagnostics.
+            uint8_t first_uplink_dr;
+            if( lr1mac_select_post_join_dr( lr1_mac_obj->real, lr1_mac_obj->tx_data_rate, &first_uplink_dr ) !=
+                OKLORAWAN )
+            {
+                lr1_mac_obj->join_status     = NOT_JOINED;
+                lr1_mac_obj->valid_rx_packet = NO_MORE_VALID_RX_PACKET;
+                post_join_dr_failed         = true;
+            }
+            else
+            {
+                lr1_mac_obj->rx_down_data.rx_payload_size              = 0;
+                lr1_mac_obj->rx_down_data.rx_metadata.is_a_join_accept = true;
+                lr1_mac_obj->rx_down_data.rx_metadata.rx_fport_present = false;
+                lr1_mac_obj->tx_data_rate_adr                          = first_uplink_dr;
+                smtc_real_set_dr_distribution( lr1_mac_obj->real, lr1_mac_obj->adr_mode_select_tmp,
+                                               &lr1_mac_obj->nb_trans );
+                lr1mac_core_context_save( lr1_mac_obj );
+            }
         }
         else
         {
@@ -1608,6 +1650,11 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
         lr1_mac_obj->lr1mac_state = LWPSTATE_IDLE;
     }
     lr1_mac_obj->valid_rx_packet = NO_MORE_VALID_RX_PACKET;
+    if( post_join_dr_failed )
+    {
+        // Finish callback delivery and state cleanup even if the panic handler returns.
+        SMTC_MODEM_HAL_PANIC( "No acceptable post-join data rate\n" );
+    }
 }
 
 /* --- EOF ------------------------------------------------------------------ */

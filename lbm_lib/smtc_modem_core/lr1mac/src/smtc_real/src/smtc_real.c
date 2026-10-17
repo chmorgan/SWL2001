@@ -1287,7 +1287,13 @@ uint8_t smtc_real_decrement_dr_simulation( smtc_real_t* real, uint8_t tx_data_ra
         {
             SMTC_MODEM_HAL_PANIC( );
         }
-        data_rate_simulation = real_const.const_datarate_backoff[index];
+        const uint8_t next_dr = real_const.const_datarate_backoff[index];
+        // Dwell-time backoff can stay at its minimum. An unsupported rate must not loop there.
+        if( next_dr >= data_rate_simulation )
+        {
+            break;
+        }
+        data_rate_simulation = next_dr;
 
         // Check if new DR is valid for at least 1 enabled channel
         if( smtc_real_is_tx_dr_acceptable( real, data_rate_simulation, false ) == OKLORAWAN )
