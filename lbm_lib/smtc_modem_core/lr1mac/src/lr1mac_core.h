@@ -91,6 +91,26 @@ status_lorawan_t lr1mac_core_join( lr1_stack_mac_t* lr1_mac_obj, uint32_t target
  */
 void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj );
 
+#if LORAWAN_JOIN_TX_TRACE
+void lr1mac_core_join_tx_trace_session_begin( lr1_stack_mac_t* lr1_mac_obj );
+bool lr1mac_core_join_tx_trace_get( const lr1_stack_mac_t* lr1_mac_obj, smtc_modem_join_tx_trace_t* trace );
+#endif
+
+#if LORAWAN_JOIN_BANK_PREFERENCE
+/**
+ * @brief Get the channel used by the most recent successful join
+ *
+ * @param [in]  lr1_mac_obj    Pointer to the MAC layer context
+ * @param [out] frequency_hz   Frequency in Hz of the join accept Tx channel
+ * @param [out] data_rate      Data rate used on the join accept Tx channel
+ * @param [out] bank           Physical US915 bank [0:7] containing the Tx channel (0xFF if unknown)
+ *
+ * @return  true if a join channel was captured, false otherwise
+ */
+bool lr1mac_core_last_join_channel_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t* frequency_hz, uint8_t* data_rate,
+                                        uint8_t* bank );
+#endif
+
 /**
  * @brief abort LoRaWAN task
  * @remark Tx, Rx will be aborted
@@ -442,6 +462,12 @@ bool lr1mac_core_available_link_adr_get( lr1_stack_mac_t* lr1_mac_obj );
  * @return false bypass not enabled
  */
 bool lr1mac_core_join_duty_cycle_backoff_bypass_get( lr1_stack_mac_t* lr1_mac_obj );
+
+/**
+ * @brief Get the active application recovery delay limit, or zero when disabled.
+ * This limit includes retry jitter and never shortens the MAC deadline.
+ */
+uint32_t lr1mac_core_join_retry_max_delay_seconds_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t current_time_s );
 
 /**
  * @brief Bypass join duty cycle backoff

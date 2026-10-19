@@ -233,6 +233,54 @@ void lorawan_api_join_status_clear( uint8_t stack_id )
     lr1mac_core_join_status_clear( &lr1_mac_obj[stack_id] );
 }
 
+#if LORAWAN_JOIN_TX_TRACE
+void lorawan_api_join_tx_trace_session_begin( uint8_t stack_id )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    lr1mac_core_join_tx_trace_session_begin( &lr1_mac_obj[stack_id] );
+}
+
+bool lorawan_api_get_join_tx_trace( uint8_t stack_id, smtc_modem_join_tx_trace_t* trace )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    return lr1mac_core_join_tx_trace_get( &lr1_mac_obj[stack_id], trace );
+}
+#endif
+
+#if LORAWAN_JOIN_BANK_PREFERENCE
+bool lorawan_api_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
+                                        uint8_t* bank )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    return lr1mac_core_last_join_channel_get( &lr1_mac_obj[stack_id], frequency_hz, data_rate, bank );
+}
+
+void lorawan_api_set_join_bank_preference( uint8_t stack_id, uint8_t bank, uint8_t attempts_remaining )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    smtc_real_set_join_bank_preference( lr1_mac_obj[stack_id].real, bank, attempts_remaining );
+}
+
+bool lorawan_api_get_join_bank_preference_exhausted( uint8_t stack_id )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    return smtc_real_get_join_preference_exhausted( lr1_mac_obj[stack_id].real );
+}
+
+void lorawan_api_clear_first_join_tx( uint8_t stack_id )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    smtc_real_clear_first_join_tx( lr1_mac_obj[stack_id].real );
+}
+
+bool lorawan_api_get_first_join_tx( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
+                                    bool* used_preference )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    return smtc_real_get_first_join_tx( lr1_mac_obj[stack_id].real, frequency_hz, data_rate, used_preference );
+}
+#endif
+
 status_lorawan_t lorawan_api_dr_strategy_set( dr_strategy_t dr_strategy, uint8_t stack_id )
 {
     PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
@@ -437,6 +485,12 @@ uint32_t lorawan_api_next_join_time_second_get( uint8_t stack_id )
 {
     PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
     return lr1mac_core_next_join_time_second_get( &lr1_mac_obj[stack_id] );
+}
+
+uint32_t lorawan_api_join_retry_max_delay_seconds_get( uint8_t stack_id, uint32_t current_time_s )
+{
+    PANIC_IF_STACK_ID_TOO_HIGH( stack_id );
+    return lr1mac_core_join_retry_max_delay_seconds_get( &lr1_mac_obj[stack_id], current_time_s );
 }
 
 bool lorawan_api_is_dtc_supported( uint8_t stack_id )

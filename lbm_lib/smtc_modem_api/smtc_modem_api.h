@@ -46,6 +46,7 @@ extern "C" {
 
 #include <stdint.h>   // C99 types
 #include <stdbool.h>  // bool type
+#include "smtc_modem_join_tx_trace.h"
 
 /*
  * -----------------------------------------------------------------------------
@@ -1192,6 +1193,108 @@ smtc_modem_return_code_t smtc_modem_set_nb_trans( uint8_t stack_id, uint8_t nb_t
  * @retval SMTC_MODEM_RC_INVALID_STACK_ID  Invalid \p stack_id
  */
 smtc_modem_return_code_t smtc_modem_get_nb_trans( uint8_t stack_id, uint8_t* nb_trans );
+
+/**
+ * @brief Get the channel used by the most recent successful join since last
+ * join status clear
+ *
+ * Only available when the stack is built with LORAWAN_JOIN_BANK_PREFERENCE.
+ *
+ * @param [in]  stack_id      Stack identifier
+ * @param [out] frequency_hz  Frequency in Hz of the uplink channel used by the
+ *                            last successful join
+ * @param [out] data_rate     Data rate used on that channel
+ * @param [out] bank          Physical US915 bank [0:7] containing that channel;
+ *                            0xFF if the join region or channel did not map to a bank
+ *
+ * @return Modem return code as defined in @ref smtc_modem_return_code_t
+ * @retval SMTC_MODEM_RC_OK                Command executed without errors
+ * @retval SMTC_MODEM_RC_INVALID           A pointer is NULL or no join was captured yet
+ * @retval SMTC_MODEM_RC_BUSY              Modem is currently in test mode
+ * @retval SMTC_MODEM_RC_INVALID_STACK_ID  Invalid \p stack_id
+ */
+smtc_modem_return_code_t smtc_modem_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz,
+                                                           uint8_t* data_rate, uint8_t* bank );
+
+/**
+ * @brief Arm a join bank preference for the next join session
+ *
+ * Each physical US915 bank contains eight 125 kHz channels [bank * 8:bank * 8 + 7]
+ * and the associated 500 kHz channel 64 + bank. The modem draws one unused enabled
+ * 125 kHz channel randomly at DR0, then the associated 500 kHz channel at DR4,
+ * then the remaining unused 125 kHz channels at DR0, skipping unavailable channel
+ * families. It refills only that bank after all its enabled channels have been
+ * used, restarting the selection order, for up to
+ * \p attempts_remaining channel selections of the next join session before
+ * falling back to region-wide hopping. The preference is volatile: it is
+ * cleared by a leave network / join status clear and at boot.
+ * Preprocessing failures or aborts can reduce the number of actual transmissions.
+ *
+ * Only available when the stack is built with LORAWAN_JOIN_BANK_PREFERENCE.
+ *
+ * @param [in] stack_id            Stack identifier
+ * @param [in] bank                Physical US915 bank to prefer [0:7]; 0xFF clears the preference
+ * @param [in] attempts_remaining  Number of preferred channel selections [1:255];
+ *                                zero clears the preference
+ *
+ * @return Modem return code as defined in @ref smtc_modem_return_code_t
+ * @retval SMTC_MODEM_RC_OK                Command executed without errors
+ * @retval SMTC_MODEM_RC_INVALID           Invalid bank (including 8)
+ * @retval SMTC_MODEM_RC_BUSY              Modem is joined, joining, or in test mode
+ * @retval SMTC_MODEM_RC_INVALID_STACK_ID  Invalid \p stack_id
+ */
+smtc_modem_return_code_t smtc_modem_set_join_bank_preference( uint8_t stack_id, uint8_t bank,
+                                                              uint8_t attempts_remaining );
+
+/**
+ * @brief Get whether all configured preferred selections transmitted and failed
+ *
+ * The result is retained during fallback channel hopping, and cleared on a
+ * successful join, re-arm, leave network, or reset. Launch failures, aborted
+ * attempts, and skipped receive windows do not count as completed failures.
+ * Only available with LORAWAN_JOIN_BANK_PREFERENCE.
+ *
+ * @retval SMTC_MODEM_RC_OK      Result returned in exhausted
+ * @retval SMTC_MODEM_RC_INVALID A NULL output pointer or invalid stack identifier
+ * @retval SMTC_MODEM_RC_BUSY    Modem is in test mode
+ */
+smtc_modem_return_code_t smtc_modem_get_join_bank_preference_exhausted( uint8_t stack_id, bool* exhausted );
+
+/**
+ * @brief Get the first actually transmitted join request of the current explicit session
+ *
+ * Captured at TX completion, retained through automatic retries and success,
+ * and cleared by a new accepted join_network request, leave network, or reset.
+ * used_preference distinguishes an explicitly preferred selection from normal
+ * channel hopping, even when the frequencies happen to match.
+ * Only available with LORAWAN_JOIN_BANK_PREFERENCE.
+ *
+ * @retval SMTC_MODEM_RC_OK      Captured transmission returned
+ * @retval SMTC_MODEM_RC_INVALID A NULL pointer, invalid stack, or no captured TX
+ * @retval SMTC_MODEM_RC_BUSY    Modem is in test mode
+ */
+smtc_modem_return_code_t smtc_modem_get_first_join_tx( uint8_t stack_id, uint32_t* frequency_hz,
+                                                       uint8_t* data_rate, bool* used_preference );
+
+/**
+ * @brief Copy the actual join transmission trace of the current explicit session
+ *
+ * Requires LORAWAN_JOIN_TX_TRACE. The latest 64 actual TX_DONE records are retained
+ * oldest to newest; aborted or merely selected channels are never recorded.
+ * The trace is cleared by an accepted join_network request, leave network, or
+ * stack initialization. Its session_id is local to that initialized stack.
+ * An empty enabled trace is a successful snapshot with count zero.
+ * A failed attempt's retry deadline becomes valid only after receive processing
+ * completes; successful or interrupted attempts do not publish a retry deadline.
+ * Call from the modem owner task; this function does not provide cross-task locking.
+ *
+ * @retval SMTC_MODEM_RC_OK               Snapshot copied to trace
+ * @retval SMTC_MODEM_RC_INVALID          trace is NULL
+ * @retval SMTC_MODEM_RC_INVALID_STACK_ID Invalid stack identifier
+ * @retval SMTC_MODEM_RC_BUSY             Modem is in test mode
+ * @retval SMTC_MODEM_RC_FAIL             Join transmission tracing is not compiled in
+ */
+smtc_modem_return_code_t smtc_modem_get_join_tx_trace( uint8_t stack_id, smtc_modem_join_tx_trace_t* trace );
 
 /**
  * @brief Get the current enabled Datarate in regards of Uplink ChMash and DwellTime

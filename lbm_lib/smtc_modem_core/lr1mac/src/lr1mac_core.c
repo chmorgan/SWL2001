@@ -47,6 +47,7 @@
 #include "smtc_real_defs_str.h"
 
 #include "lr1mac_config.h"
+#include "lorawan_join_retry_policy.h"
 
 #if defined( ADD_RELAY_TX )
 #include "relay_tx_api.h"
@@ -93,6 +94,11 @@ static const char* smtc_name_lr_fhss_cr[] = { "CR 5/6", "CR 2/3", "CR 1/2", "CR 
  */
 static void copy_user_payload( lr1_stack_mac_t* lr1_mac_obj, const uint8_t* data_in, const uint8_t size_in );
 static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj );
+#if LORAWAN_JOIN_TX_TRACE
+static void join_tx_trace_clear( lr1_stack_mac_t* lr1_mac_obj );
+static void join_tx_trace_capture( lr1_stack_mac_t* lr1_mac_obj, uint8_t hook_id );
+static void join_tx_trace_complete( lr1_stack_mac_t* lr1_mac_obj, bool failed, bool normal_completion );
+#endif
 /*
  *-----------------------------------------------------------------------------------
  *--- PUBLIC FUNCTIONS DEFINITIONS --------------------------------------------------
@@ -263,6 +269,18 @@ lr1mac_states_t lr1mac_core_process( lr1_stack_mac_t* lr1_mac_obj )
         case RADIOSTATE_TX_FINISHED:
         {
             DBG_PRINT_WITH_LINE( "%s", " TX DONE" );
+#if LORAWAN_JOIN_TX_TRACE
+            join_tx_trace_capture( lr1_mac_obj, myhook_id );
+#endif
+#if LORAWAN_JOIN_BANK_PREFERENCE
+            if( ( lr1_mac_obj->tx_mtype == JOIN_REQUEST ) &&
+                ( lr1_mac_obj->rp_planner_status == RP_STATUS_TX_DONE ) )
+            {
+                smtc_real_capture_first_join_tx(
+                    lr1_mac_obj->real, lr1_mac_obj->tx_frequency, lr1_mac_obj->tx_data_rate );
+                smtc_real_join_preference_tx_done( lr1_mac_obj->real );
+            }
+#endif
             lr1_mac_obj->lr1mac_state               = LWPSTATE_RX1;
             lr1_mac_obj->tx_duty_cycle_timestamp_ms = lr1_mac_obj->isr_tx_done_radio_timestamp;
             lr1_mac_obj->tx_duty_cycle_time_off_ms =
@@ -492,6 +510,9 @@ status_lorawan_t lr1mac_core_join( lr1_stack_mac_t* lr1_mac_obj, uint32_t target
     lr1_mac_obj->timestamp_failsafe  = current_timestamp;
     lr1_mac_obj->rtc_target_timer_ms = target_time_ms;
     lr1_mac_obj->join_status         = JOINING;
+#if LORAWAN_JOIN_TX_TRACE
+    lr1_mac_obj->join_tx_trace_pending_sequence = 0;
+#endif
 
     //    lr1_stack_mac_region_config( lr1_mac_obj );
 
@@ -543,6 +564,23 @@ join_status_t lr1_mac_joined_status_get( lr1_stack_mac_t* lr1_mac_obj )
 void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
 {
     lr1_mac_obj->join_status = NOT_JOINED;
+#if LORAWAN_JOIN_TX_TRACE
+    join_tx_trace_clear( lr1_mac_obj );
+#endif
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    memset( &lr1_mac_obj->join_diagnostic, 0, sizeof( lr1_mac_obj->join_diagnostic ) );
+    memset( &lr1_mac_obj->linkadr_diagnostic, 0, sizeof( lr1_mac_obj->linkadr_diagnostic ) );
+    lr1_mac_obj->real->diagnostic.valid = false;
+    lr1_mac_obj->real->diagnostic.cflist_mask_applied = false;
+#endif
+#if LORAWAN_JOIN_BANK_PREFERENCE
+    lr1_mac_obj->last_join_frequency_hz = 0;
+    lr1_mac_obj->last_join_dr           = 0;
+    lr1_mac_obj->last_join_bank         = SMTC_REAL_JOIN_PREFERENCE_BANK_NONE;
+    lr1_mac_obj->last_join_valid        = false;
+    smtc_real_clear_join_bank_preference( lr1_mac_obj->real );
+    smtc_real_clear_first_join_tx( lr1_mac_obj->real );
+#endif
     lr1mac_core_abort( lr1_mac_obj );
     smtc_real_init_join_snapshot_channel_mask( lr1_mac_obj->real );
     lr1_mac_obj->retry_join_cpt = 0;
@@ -550,6 +588,131 @@ void lr1mac_core_join_status_clear( lr1_stack_mac_t* lr1_mac_obj )
     // Revert ADR modem in case the leave network command is called before join success
     lr1_mac_obj->adr_mode_select = lr1_mac_obj->adr_mode_select_tmp;
 }
+
+#if LORAWAN_JOIN_TX_TRACE
+static void join_tx_trace_clear( lr1_stack_mac_t* lr1_mac_obj )
+{
+    const uint32_t session_id = lr1_mac_obj->join_tx_trace.session_id;
+    memset( &lr1_mac_obj->join_tx_trace, 0, sizeof( lr1_mac_obj->join_tx_trace ) );
+    lr1_mac_obj->join_tx_trace.session_id = session_id;
+    lr1_mac_obj->join_tx_trace_pending_sequence = 0;
+}
+
+void lr1mac_core_join_tx_trace_session_begin( lr1_stack_mac_t* lr1_mac_obj )
+{
+    uint32_t session_id = lr1_mac_obj->join_tx_trace.session_id + 1U;
+    if( session_id == 0 )
+    {
+        session_id = 1;
+    }
+    join_tx_trace_clear( lr1_mac_obj );
+    lr1_mac_obj->join_tx_trace.session_id = session_id;
+}
+
+bool lr1mac_core_join_tx_trace_get( const lr1_stack_mac_t* lr1_mac_obj, smtc_modem_join_tx_trace_t* trace )
+{
+    if( ( lr1_mac_obj == NULL ) || ( trace == NULL ) )
+    {
+        return false;
+    }
+    *trace = lr1_mac_obj->join_tx_trace;
+    return true;
+}
+
+static void join_tx_trace_capture( lr1_stack_mac_t* lr1_mac_obj, uint8_t hook_id )
+{
+    if( ( lr1_mac_obj->tx_mtype != JOIN_REQUEST ) ||
+        ( lr1_mac_obj->rp_planner_status != RP_STATUS_TX_DONE ) )
+    {
+        return;
+    }
+    smtc_modem_join_tx_trace_t* trace = &lr1_mac_obj->join_tx_trace;
+    if( trace->count == SMTC_MODEM_JOIN_TX_TRACE_CAPACITY )
+    {
+        memmove( &trace->records[0], &trace->records[1],
+                 sizeof( trace->records[0] ) * ( SMTC_MODEM_JOIN_TX_TRACE_CAPACITY - 1U ) );
+        trace->count--;
+        trace->dropped++;
+    }
+    smtc_modem_join_tx_trace_record_t* record = &trace->records[trace->count++];
+    memset( record, 0, sizeof( *record ) );
+    record->sequence             = ++trace->total;
+    record->tx_done_timestamp_ms = lr1_mac_obj->isr_tx_done_radio_timestamp;
+    record->frequency_hz         = lr1_mac_obj->tx_frequency;
+    record->airtime_ms           = lr1_mac_obj->rp->stats.tx_last_toa_ms[hook_id];
+    record->dev_nonce            = lr1_mac_obj->dev_nonce;
+    record->data_rate            = lr1_mac_obj->tx_data_rate;
+    record->bank                 = 0xFF;
+#if LORAWAN_JOIN_BANK_PREFERENCE
+    record->used_preference =
+        lr1_mac_obj->real->join_preference.attempt_state != SMTC_REAL_JOIN_PREFERENCE_NONE;
+#endif
+#if defined( TEST_BYPASS_JOIN_DUTY_CYCLE )
+    record->join_backoff_bypassed = true;
+#else
+    record->join_backoff_bypassed = lr1_mac_obj->is_join_duty_cycle_backoff_bypass_enabled;
+#endif
+#if defined( REGION_US_915 )
+    if( lr1_mac_obj->real->region_type == SMTC_REAL_REGION_US_915 )
+    {
+        if( ( record->data_rate == DR4 ) && ( record->frequency_hz >= DEFAULT_TX_FREQ_500_START_US_915 ) )
+        {
+            const uint32_t offset = record->frequency_hz - DEFAULT_TX_FREQ_500_START_US_915;
+            if( ( offset % DEFAULT_TX_STEP_500_US_915 == 0 ) && ( offset / DEFAULT_TX_STEP_500_US_915 < 8U ) )
+            {
+                record->bank = offset / DEFAULT_TX_STEP_500_US_915;
+            }
+        }
+        else if( ( record->data_rate <= DR3 ) && ( record->frequency_hz >= DEFAULT_TX_FREQ_125_START_US_915 ) )
+        {
+            const uint32_t offset = record->frequency_hz - DEFAULT_TX_FREQ_125_START_US_915;
+            if( ( offset % DEFAULT_TX_STEP_125_US_915 == 0 ) && ( offset / DEFAULT_TX_STEP_125_US_915 < 64U ) )
+            {
+                record->bank = ( offset / DEFAULT_TX_STEP_125_US_915 ) / 8U;
+            }
+        }
+    }
+#endif
+    lr1_mac_obj->join_tx_trace_pending_sequence = record->sequence;
+}
+
+static void join_tx_trace_complete( lr1_stack_mac_t* lr1_mac_obj, bool failed, bool normal_completion )
+{
+    smtc_modem_join_tx_trace_t* trace = &lr1_mac_obj->join_tx_trace;
+    if( ( trace->count != 0 ) && ( lr1_mac_obj->join_tx_trace_pending_sequence != 0 ) )
+    {
+        smtc_modem_join_tx_trace_record_t* record = &trace->records[trace->count - 1U];
+        if( failed && normal_completion && ( record->sequence == lr1_mac_obj->join_tx_trace_pending_sequence ) )
+        {
+            record->next_join_deadline_seconds = lr1_mac_obj->next_time_to_join_seconds;
+            record->next_join_deadline_valid = true;
+        }
+    }
+    lr1_mac_obj->join_tx_trace_pending_sequence = 0;
+}
+#endif
+
+#if LORAWAN_JOIN_BANK_PREFERENCE
+/**************************************************/
+/*      LoraWan  Last Join Channel  Getter        */
+/**************************************************/
+bool lr1mac_core_last_join_channel_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t* frequency_hz, uint8_t* data_rate,
+                                        uint8_t* bank )
+{
+    if( ( lr1_mac_obj == NULL ) || ( frequency_hz == NULL ) || ( data_rate == NULL ) || ( bank == NULL ) )
+    {
+        return false;
+    }
+    if( lr1_mac_obj->last_join_valid == false )
+    {
+        return false;
+    }
+    *frequency_hz = lr1_mac_obj->last_join_frequency_hz;
+    *data_rate    = lr1_mac_obj->last_join_dr;
+    *bank         = lr1_mac_obj->last_join_bank;
+    return true;
+}
+#endif
 
 /**************************************************/
 /*         LoraWan  SendPayload  Method           */
@@ -900,6 +1063,19 @@ uint32_t lr1mac_core_next_join_time_second_get( lr1_stack_mac_t* lr1_mac_obj )
     return ( lr1_mac_obj->next_time_to_join_seconds );
 }
 
+uint32_t lr1mac_core_join_retry_max_delay_seconds_get( lr1_stack_mac_t* lr1_mac_obj, uint32_t current_time_s )
+{
+#if LORAWAN_JOIN_RETRY_POLICY_ENABLED
+    return lorawan_join_retry_active_limit_seconds(
+        LORAWAN_JOIN_RETRY_MAX_DELAY_SECONDS, LORAWAN_JOIN_FIRST_HOUR_MAX_DELAY_SECONDS,
+        lr1_mac_obj->first_join_timestamp, current_time_s, lr1_mac_obj->retry_join_cpt == 0 );
+#else
+    ( void ) lr1_mac_obj;
+    ( void ) current_time_s;
+    return 0U;
+#endif
+}
+
 smtc_real_region_types_t lr1mac_core_get_region( lr1_stack_mac_t* lr1_mac_obj )
 {
     return lr1_mac_obj->real->region_type;
@@ -1196,10 +1372,75 @@ status_lorawan_t lr1mac_core_update_join_channel( lr1_stack_mac_t* lr1_mac_obj )
         lr1_mac_obj->real, &( lr1_mac_obj->tx_data_rate ), &( lr1_mac_obj->tx_frequency ),
         &( lr1_mac_obj->rx1_frequency ), &( lr1_mac_obj->rx2_frequency ), &( lr1_mac_obj->nb_available_tx_channel ) ) );
 }
+#if LORAWAN_FAILURE_DIAGNOSTICS && defined( REGION_US_915 )
+static void lr1mac_dump_no_channels_mac_context( const lr1_stack_mac_t* lr1_mac_obj )
+{
+    smtc_modem_hal_print_trace( "LORAWAN_FAILURE_DIAGNOSTICS MAC context begin\n" );
+    smtc_modem_hal_print_trace(
+        "stack_id=%u uptime_ms=%lu tx_dr=%u retained_adr_dr=%u strategy=%u adr_enabled=%u "
+        "join_status=%u mac_state=%u tx_frequency=%lu fcnt_up=%lu fcnt_down=%lu\n",
+        lr1_mac_obj->stack_id, ( unsigned long ) smtc_modem_hal_get_time_in_ms( ), lr1_mac_obj->tx_data_rate,
+        lr1_mac_obj->tx_data_rate_adr, lr1_mac_obj->adr_mode_select, lr1_mac_obj->adr_enable,
+        lr1_mac_obj->join_status, lr1_mac_obj->lr1mac_state, ( unsigned long ) lr1_mac_obj->tx_frequency,
+        ( unsigned long ) lr1_mac_obj->fcnt_up, ( unsigned long ) lr1_mac_obj->fcnt_dwn );
+
+    const lr1mac_join_diagnostic_t* join = &lr1_mac_obj->join_diagnostic;
+    smtc_modem_hal_print_trace( "last_processed_join_accept valid=%u\n", join->valid );
+    if( join->valid )
+    {
+        smtc_modem_hal_print_trace(
+            "accepted=%u join_dr=%u join_frequency=%lu cflist_present=%u update_called=%u mask_applied=%u\n",
+            join->accepted, join->tx_data_rate, ( unsigned long ) join->tx_frequency, join->cflist_present,
+            join->cflist_update_called, join->cflist_mask_applied );
+        if( join->cflist_update_called )
+        {
+            smtc_modem_hal_print_trace( "cflist_update_status=%d\n", join->cflist_update_status );
+        }
+        if( join->cflist_present )
+        {
+            smtc_modem_hal_print_trace( "cflist:" );
+            for( uint8_t i = 0; i < sizeof( lr1_mac_obj->cf_list ); i++ )
+            {
+                smtc_modem_hal_print_trace( " %02X", lr1_mac_obj->cf_list[i] );
+            }
+            smtc_modem_hal_print_trace( "\n" );
+        }
+    }
+
+    const lr1mac_linkadr_diagnostic_t* linkadr = &lr1_mac_obj->linkadr_diagnostic;
+    smtc_modem_hal_print_trace( "last_applied_linkadr valid=%u\n", linkadr->valid );
+    if( linkadr->valid )
+    {
+        const uint8_t requested_dr = linkadr->final_command[0] >> 4;
+        smtc_modem_hal_print_trace(
+            "group_count=%u status=0x%02X fcnt_down=%lu final_command=%02X %02X %02X %02X "
+            "requested_dr=0x%X retain_existing_dr=%u\n",
+            linkadr->group_count, linkadr->status, ( unsigned long ) linkadr->fcnt_down,
+            linkadr->final_command[0], linkadr->final_command[1], linkadr->final_command[2],
+            linkadr->final_command[3], requested_dr, requested_dr == 0x0F );
+    }
+    smtc_modem_hal_print_trace( "LORAWAN_FAILURE_DIAGNOSTICS MAC context end\n" );
+}
+#endif
+
 status_lorawan_t lr1mac_core_update_next_tx_channel( lr1_stack_mac_t* lr1_mac_obj )
 {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+    status_lorawan_t status = smtc_real_get_next_channel(
+        lr1_mac_obj->real, lr1_mac_obj->tx_data_rate, &lr1_mac_obj->tx_frequency,
+        &lr1_mac_obj->rx1_frequency, &lr1_mac_obj->nb_available_tx_channel );
+#if defined( REGION_US_915 )
+    if( status != OKLORAWAN && lr1_mac_obj->real->region_type == SMTC_REAL_REGION_US_915 &&
+        lr1_mac_obj->nb_available_tx_channel == 0 )
+    {
+        lr1mac_dump_no_channels_mac_context( lr1_mac_obj );
+    }
+#endif
+    return status;
+#else
     return ( smtc_real_get_next_channel( lr1_mac_obj->real, lr1_mac_obj->tx_data_rate, &( lr1_mac_obj->tx_frequency ),
                                          &( lr1_mac_obj->rx1_frequency ), &( lr1_mac_obj->nb_available_tx_channel ) ) );
+#endif
 }
 uint32_t lr1mac_core_get_time_of_nwk_ans( lr1_stack_mac_t* lr1_mac_obj )
 {
@@ -1237,6 +1478,12 @@ static void copy_user_payload( lr1_stack_mac_t* lr1_mac_obj, const uint8_t* data
 
 void lr1mac_core_abort( lr1_stack_mac_t* lr1_mac_obj )
 {
+#if LORAWAN_JOIN_TX_TRACE
+    lr1_mac_obj->join_tx_trace_pending_sequence = 0;
+#endif
+#if LORAWAN_JOIN_BANK_PREFERENCE
+    smtc_real_join_preference_abort( lr1_mac_obj->real );
+#endif
     lr1_mac_obj->valid_rx_packet     = NO_MORE_VALID_RX_PACKET;
     lr1_mac_obj->type_of_ans_to_send = NOFRAME_TOSEND;
     memset( &lr1_mac_obj->rx_down_data, 0, sizeof( lr1_mac_obj->rx_down_data ) );
@@ -1246,8 +1493,45 @@ void lr1mac_core_abort( lr1_stack_mac_t* lr1_mac_obj )
     rp_task_abort( lr1_mac_obj->rp, lr1_mac_obj->stack_id4rp );
 }
 
+static status_lorawan_t lr1mac_select_post_join_dr( smtc_real_t* real, uint8_t join_dr, uint8_t* selected_dr )
+{
+    uint8_t candidate = join_dr;
+    if( smtc_real_is_tx_dr_acceptable( real, candidate, false ) != OKLORAWAN )
+    {
+        candidate = smtc_real_decrement_dr_simulation( real, join_dr );
+        if( smtc_real_is_tx_dr_acceptable( real, candidate, false ) != OKLORAWAN )
+        {
+            // If regional backoff has no usable lower rate, use the lowest acceptable enabled rate.
+            const uint16_t supported_dr_mask = smtc_real_mask_tx_dr_channel_up_dwell_time_check( real );
+            bool           found             = false;
+            for( uint8_t dr = 0; dr < 16; dr++ )
+            {
+                if( ( supported_dr_mask & ( 1U << dr ) ) != 0 &&
+                    smtc_real_is_tx_dr_acceptable( real, dr, false ) == OKLORAWAN )
+                {
+                    candidate = dr;
+                    found     = true;
+                    break;
+                }
+            }
+            if( found == false )
+            {
+                return ERRORLORAWAN;
+            }
+        }
+    }
+    *selected_dr = candidate;
+    return OKLORAWAN;
+}
+
 static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
 {
+#if LORAWAN_JOIN_BANK_PREFERENCE || LORAWAN_JOIN_TX_TRACE
+    const bool join_attempt =
+        ( lr1_mac_obj->tx_mtype == JOIN_REQUEST ) && ( lr1_mac_obj->join_status == JOINING );
+    const bool normal_completion = lr1_mac_obj->radio_process_state != RADIOSTATE_ABORTED_BY_RP;
+#endif
+    bool post_join_dr_failed = false;
     lr1_mac_obj->radio_process_state = RADIOSTATE_IDLE;
 
     lr1_mac_obj->rx_down_data.rx_metadata.is_a_join_accept = false;
@@ -1257,18 +1541,28 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
         SMTC_MODEM_HAL_TRACE_PRINTF( " update join procedure\n" );
         if( lr1_stack_mac_join_accept( lr1_mac_obj ) == OKLORAWAN )
         {
-            lr1_mac_obj->rx_down_data.rx_payload_size              = 0;
-            lr1_mac_obj->rx_down_data.rx_metadata.is_a_join_accept = true;
-            lr1_mac_obj->rx_down_data.rx_metadata.rx_fport_present = false;
-
             //@note because datarate Distribution has been changed during join
             lr1_mac_obj->adr_mode_select = lr1_mac_obj->adr_mode_select_tmp;
-            // copy the join data rate to the default data_rate_adr => the first uplink will be transmit with the join
-            // dr (ease GW one chanel)
-            lr1_mac_obj->tx_data_rate_adr = lr1_mac_obj->tx_data_rate;
-            smtc_real_set_dr_distribution( lr1_mac_obj->real, lr1_mac_obj->adr_mode_select_tmp,
-                                           &lr1_mac_obj->nb_trans );
-            lr1mac_core_context_save( lr1_mac_obj );
+            // A CFList may remove the JoinRequest's channel class (US915 DR4 with only 125 kHz channels left).
+            // Initialize retained ADR against the new mask; keep the actual join DR for diagnostics.
+            uint8_t first_uplink_dr;
+            if( lr1mac_select_post_join_dr( lr1_mac_obj->real, lr1_mac_obj->tx_data_rate, &first_uplink_dr ) !=
+                OKLORAWAN )
+            {
+                lr1_mac_obj->join_status     = NOT_JOINED;
+                lr1_mac_obj->valid_rx_packet = NO_MORE_VALID_RX_PACKET;
+                post_join_dr_failed         = true;
+            }
+            else
+            {
+                lr1_mac_obj->rx_down_data.rx_payload_size              = 0;
+                lr1_mac_obj->rx_down_data.rx_metadata.is_a_join_accept = true;
+                lr1_mac_obj->rx_down_data.rx_metadata.rx_fport_present = false;
+                lr1_mac_obj->tx_data_rate_adr                          = first_uplink_dr;
+                smtc_real_set_dr_distribution( lr1_mac_obj->real, lr1_mac_obj->adr_mode_select_tmp,
+                                               &lr1_mac_obj->nb_trans );
+                lr1mac_core_context_save( lr1_mac_obj );
+            }
         }
         else
         {
@@ -1281,7 +1575,22 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
         lr1_stack_mac_cmd_parse( lr1_mac_obj );
     }
 
+#if LORAWAN_JOIN_BANK_PREFERENCE
+    if( join_attempt )
+    {
+        smtc_real_join_preference_complete(
+            lr1_mac_obj->real, lr1_mac_obj->join_status == JOINED, normal_completion );
+    }
+#endif
     lr1_stack_mac_update( lr1_mac_obj );
+#if LORAWAN_JOIN_TX_TRACE
+    if( join_attempt )
+    {
+        // A fatal post-JoinAccept rejection has no next retry deadline.
+        join_tx_trace_complete( lr1_mac_obj, lr1_mac_obj->join_status == NOT_JOINED && !post_join_dr_failed,
+                                normal_completion );
+    }
+#endif
 
     /// If those MAC commands are not acked, set as not requested ///
     if( lr1_mac_obj->link_check_user_req == USER_MAC_REQ_SENT )
@@ -1313,9 +1622,13 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
     if( ( lr1_mac_obj->type_of_ans_to_send == NWKFRAME_TOSEND ) ||
         ( lr1_mac_obj->type_of_ans_to_send == USRFRAME_TORETRANSMIT ) )
     {  // @note ack send during the next tx|| ( packet.IsFrameToSend == USERACK_TOSEND ) ) {
+#if LORAWAN_FAILURE_DIAGNOSTICS
+        if( lr1mac_core_update_next_tx_channel( lr1_mac_obj ) != OKLORAWAN )
+#else
         if( smtc_real_get_next_channel( lr1_mac_obj->real, lr1_mac_obj->tx_data_rate, &lr1_mac_obj->tx_frequency,
                                         &lr1_mac_obj->rx1_frequency,
                                         &lr1_mac_obj->nb_available_tx_channel ) != OKLORAWAN )
+#endif
         {
             lr1_mac_obj->lr1mac_state = LWPSTATE_IDLE;
             if( lr1_mac_obj->type_of_ans_to_send == USRFRAME_TORETRANSMIT )
@@ -1339,6 +1652,11 @@ static void lr1mac_mac_update( lr1_stack_mac_t* lr1_mac_obj )
         lr1_mac_obj->lr1mac_state = LWPSTATE_IDLE;
     }
     lr1_mac_obj->valid_rx_packet = NO_MORE_VALID_RX_PACKET;
+    if( post_join_dr_failed )
+    {
+        // Finish callback delivery and state cleanup even if the panic handler returns.
+        SMTC_MODEM_HAL_PANIC( "No acceptable post-join data rate\n" );
+    }
 }
 
 /* --- EOF ------------------------------------------------------------------ */

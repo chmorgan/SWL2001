@@ -765,6 +765,12 @@ smtc_modem_return_code_t smtc_modem_join_network( uint8_t stack_id )
     }
     else if( lorawan_api_get_activation_mode( stack_id ) == ACTIVATION_MODE_ABP )
     {
+#if LORAWAN_JOIN_TX_TRACE
+        lorawan_api_join_tx_trace_session_begin( stack_id );
+#endif
+#if LORAWAN_JOIN_BANK_PREFERENCE
+        lorawan_api_clear_first_join_tx( stack_id );
+#endif
         lorawan_api_join( 0, stack_id );
         increment_asynchronous_msgnumber( SMTC_MODEM_EVENT_JOINED, 0, stack_id );
         return_code = SMTC_MODEM_RC_OK;
@@ -772,11 +778,108 @@ smtc_modem_return_code_t smtc_modem_join_network( uint8_t stack_id )
     else
     {
         // Launch OTAA task
+#if LORAWAN_JOIN_TX_TRACE
+        lorawan_api_join_tx_trace_session_begin( stack_id );
+#endif
+#if LORAWAN_JOIN_BANK_PREFERENCE
+        lorawan_api_clear_first_join_tx( stack_id );
+#endif
         lorawan_join_add_task( stack_id );
     }
 
     return return_code;
 }
+
+smtc_modem_return_code_t smtc_modem_get_join_tx_trace( uint8_t stack_id, smtc_modem_join_tx_trace_t* trace )
+{
+    RETURN_BUSY_IF_TEST_MODE( );
+    RETURN_INVALID_IF_NULL( trace );
+    if( stack_id >= NUMBER_OF_STACKS )
+    {
+        return SMTC_MODEM_RC_INVALID_STACK_ID;
+    }
+#if LORAWAN_JOIN_TX_TRACE
+    return lorawan_api_get_join_tx_trace( stack_id, trace ) ? SMTC_MODEM_RC_OK : SMTC_MODEM_RC_INVALID;
+#else
+    return SMTC_MODEM_RC_FAIL;
+#endif
+}
+
+#if LORAWAN_JOIN_BANK_PREFERENCE
+smtc_modem_return_code_t smtc_modem_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz,
+                                                           uint8_t* data_rate, uint8_t* bank )
+{
+    RETURN_BUSY_IF_TEST_MODE( );
+    RETURN_INVALID_IF_NULL( frequency_hz );
+    RETURN_INVALID_IF_NULL( data_rate );
+    RETURN_INVALID_IF_NULL( bank );
+    if( stack_id >= NUMBER_OF_STACKS )
+    {
+        return SMTC_MODEM_RC_INVALID_STACK_ID;
+    }
+
+    if( lorawan_api_get_last_join_channel( stack_id, frequency_hz, data_rate, bank ) == false )
+    {
+        return SMTC_MODEM_RC_INVALID;  // No successful join captured yet
+    }
+    return SMTC_MODEM_RC_OK;
+}
+
+smtc_modem_return_code_t smtc_modem_set_join_bank_preference( uint8_t stack_id, uint8_t bank,
+                                                              uint8_t attempts_remaining )
+{
+    RETURN_BUSY_IF_TEST_MODE( );
+    if( stack_id >= NUMBER_OF_STACKS )
+    {
+        return SMTC_MODEM_RC_INVALID_STACK_ID;
+    }
+    if( ( bank > SMTC_REAL_JOIN_PREFERENCE_BANK_MAX ) && ( bank != SMTC_REAL_JOIN_PREFERENCE_BANK_NONE ) )
+    {
+        return SMTC_MODEM_RC_INVALID;
+    }
+
+    smtc_modem_status_mask_t status_mask = modem_get_status( stack_id );
+    if( ( ( status_mask & SMTC_MODEM_STATUS_JOINED ) == SMTC_MODEM_STATUS_JOINED ) ||
+        ( ( status_mask & SMTC_MODEM_STATUS_JOINING ) == SMTC_MODEM_STATUS_JOINING ) )
+    {
+        return SMTC_MODEM_RC_BUSY;
+    }
+
+    lorawan_api_set_join_bank_preference( stack_id, bank, attempts_remaining );
+    return SMTC_MODEM_RC_OK;
+}
+
+smtc_modem_return_code_t smtc_modem_get_join_bank_preference_exhausted( uint8_t stack_id, bool* exhausted )
+{
+    RETURN_BUSY_IF_TEST_MODE( );
+    RETURN_INVALID_IF_NULL( exhausted );
+    if( stack_id >= NUMBER_OF_STACKS )
+    {
+        return SMTC_MODEM_RC_INVALID;
+    }
+    *exhausted = lorawan_api_get_join_bank_preference_exhausted( stack_id );
+    return SMTC_MODEM_RC_OK;
+}
+
+smtc_modem_return_code_t smtc_modem_get_first_join_tx( uint8_t stack_id, uint32_t* frequency_hz,
+                                                       uint8_t* data_rate, bool* used_preference )
+{
+    RETURN_BUSY_IF_TEST_MODE( );
+    RETURN_INVALID_IF_NULL( frequency_hz );
+    RETURN_INVALID_IF_NULL( data_rate );
+    RETURN_INVALID_IF_NULL( used_preference );
+    if( stack_id >= NUMBER_OF_STACKS )
+    {
+        return SMTC_MODEM_RC_INVALID;
+    }
+    if( lorawan_api_get_first_join_tx( stack_id, frequency_hz, data_rate, used_preference ) == false )
+    {
+        return SMTC_MODEM_RC_INVALID;
+    }
+    return SMTC_MODEM_RC_OK;
+}
+#endif
+
 smtc_modem_return_code_t smtc_modem_request_uplink( uint8_t stack_id, uint8_t f_port, bool confirmed,
                                                     const uint8_t* payload, uint8_t payload_length )
 {

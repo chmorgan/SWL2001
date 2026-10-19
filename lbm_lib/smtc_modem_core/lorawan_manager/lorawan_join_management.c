@@ -47,6 +47,7 @@
 #include "lorawan_api.h"
 #include "modem_core.h"
 #include "modem_event_utilities.h"
+#include "lorawan_join_retry_policy.h"
 
 /*
  * -----------------------------------------------------------------------------
@@ -111,7 +112,7 @@ static uint8_t lorawan_join_management_service_downlink_handler( lr1_stack_mac_d
  *
  * @param stack_id
  */
-static void    lorawan_join_internal_add_task( uint8_t stack_id, uint32_t current_time_s );
+static void    lorawan_join_internal_add_task( uint8_t stack_id, uint32_t recovery_delay_s, bool is_retry );
 static uint8_t nap = 0;
 /*
  * -----------------------------------------------------------------------------
@@ -136,7 +137,7 @@ void lorawan_join_add_task( uint8_t stack_id )
     {
         return;
     }
-    lorawan_join_internal_add_task( stack_id, smtc_modem_hal_get_time_in_s( ) );
+    lorawan_join_internal_add_task( stack_id, 0U, false );
 }
 
 void lorawan_join_remove_task( uint8_t stack_id )
@@ -189,11 +190,11 @@ static void lorawan_join_management_service_on_update( void* context )
         {
             if( task_manager->modem_task[VIRTUAL_TASK_ID].task_context == SUCCESS_TO_LAUNCH_JOIN )
             {
-                lorawan_join_internal_add_task( STACK_ID_CURRENT_TASK, smtc_modem_hal_get_time_in_s( ) );
+                lorawan_join_internal_add_task( STACK_ID_CURRENT_TASK, 0U, true );
             }
             else
             {
-                lorawan_join_internal_add_task( STACK_ID_CURRENT_TASK, smtc_modem_hal_get_time_in_s( ) + 120 );
+                lorawan_join_internal_add_task( STACK_ID_CURRENT_TASK, 120U, true );
             }
             increment_asynchronous_msgnumber( SMTC_MODEM_EVENT_JOINFAIL, 0, STACK_ID_CURRENT_TASK );
         }
@@ -208,38 +209,49 @@ static uint8_t lorawan_join_management_service_downlink_handler( lr1_stack_mac_d
     return MODEM_DOWNLINK_UNCONSUMED;
 }
 
-static void lorawan_join_internal_add_task( uint8_t stack_id, uint32_t current_time_s )
+static void lorawan_join_internal_add_task( uint8_t stack_id, uint32_t recovery_delay_s, bool is_retry )
 {
+    const uint32_t now_s = smtc_modem_hal_get_time_in_s( );
     smodem_task task_join = { 0 };
     task_join.id          = JOIN_TASK + ( NUMBER_OF_TASKS * stack_id );
     task_join.stack_id    = stack_id;
     task_join.priority    = TASK_MEDIUM_HIGH_PRIORITY;
 
-    task_join.time_to_execute_s = smtc_modem_hal_get_random_nb_in_range( 0, 5 );
+    const uint32_t jitter_s =
+        smtc_modem_hal_get_random_nb_in_range( 0, LORAWAN_JOIN_RETRY_SCHEDULER_JITTER_MAX_SECONDS );
+    uint32_t mac_deadline_s = lorawan_api_next_join_time_second_get( stack_id );
 
 #if defined( TEST_BYPASS_JOIN_DUTY_CYCLE )
     SMTC_MODEM_HAL_TRACE_WARNING( "BYPASS JOIN DUTY CYCLE activated\n" );
-    task_join.time_to_execute_s += current_time_s;
+    mac_deadline_s = now_s;
 #else
     if( ( lorawan_api_modem_certification_is_enabled( stack_id ) == true ) ||
         ( lorawan_api_join_duty_cycle_backoff_bypass_get( stack_id ) == true ) )
     {
-        task_join.time_to_execute_s += current_time_s;
-    }
-    else
-    {
-        task_join.time_to_execute_s += lorawan_api_next_join_time_second_get( stack_id );
+        mac_deadline_s = now_s;
     }
 #endif
 
-    if( ( int32_t ) ( task_join.time_to_execute_s - current_time_s ) <= 0 )
+    uint32_t recovery_limit_s = UINT32_MAX;
+#if LORAWAN_JOIN_RETRY_POLICY_ENABLED
+    if( is_retry )
+    {
+        recovery_limit_s = lorawan_api_join_retry_max_delay_seconds_get( stack_id, now_s );
+    }
+#else
+    ( void ) is_retry;
+#endif
+    task_join.time_to_execute_s = lorawan_join_retry_schedule_time_seconds(
+        now_s, mac_deadline_s, recovery_delay_s, jitter_s, recovery_limit_s );
+
+    if( ( int32_t ) ( task_join.time_to_execute_s - now_s ) <= 0 )
     {
         SMTC_MODEM_HAL_TRACE_PRINTF( " Start a new join sequence now on stack %u\n", stack_id );
     }
     else
     {
         SMTC_MODEM_HAL_TRACE_PRINTF( " Start a new join sequence in %d seconds on stack %u\n",
-                                     task_join.time_to_execute_s - current_time_s, stack_id );
+                                     task_join.time_to_execute_s - now_s, stack_id );
     }
 
     SMTC_MODEM_HAL_PANIC_ON_FAILURE( modem_supervisor_add_task( &task_join ) == TASK_VALID );

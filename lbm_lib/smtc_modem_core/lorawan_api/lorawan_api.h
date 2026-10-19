@@ -192,6 +192,44 @@ join_status_t lorawan_api_isjoined( uint8_t stack_id );
  */
 void lorawan_api_join_status_clear( uint8_t stack_id );
 
+#if LORAWAN_JOIN_TX_TRACE
+void lorawan_api_join_tx_trace_session_begin( uint8_t stack_id );
+bool lorawan_api_get_join_tx_trace( uint8_t stack_id, smtc_modem_join_tx_trace_t* trace );
+#endif
+
+#if LORAWAN_JOIN_BANK_PREFERENCE
+/**
+ * @brief Get the channel used by the most recent successful join
+ *
+ * @param [in]  stack_id       Multiprotocol service identifier
+ * @param [out] frequency_hz   Frequency in Hz of the join accept Tx channel
+ * @param [out] data_rate      Data rate used on the join accept Tx channel
+ * @param [out] bank           Physical US915 bank [0:7] containing the Tx channel (0xFF if unknown)
+ *
+ * @return  true if a join channel was captured, false otherwise
+ */
+bool lorawan_api_get_last_join_channel( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
+                                        uint8_t* bank );
+
+/**
+ * @brief Arm a join bank preference for the next join session
+ *
+ * Each physical bank [0:7] contains eight 125 kHz channels and channel 64 + bank
+ * at 500 kHz. The region draws one unused enabled 125 kHz channel randomly at DR0,
+ * then its associated 500 kHz channel at DR4, then the remaining unused 125 kHz
+ * channels at DR0, skipping unavailable channel families. It refills only that
+ * bank after all its enabled channels have been used, restarting the selection
+ * order. Invalid banks are ignored; 0xFF clears.
+ * After attempts_remaining selections, fall back to normal hopping.
+ */
+void lorawan_api_set_join_bank_preference( uint8_t stack_id, uint8_t bank, uint8_t attempts_remaining );
+/** Sticky until success or session reset; excludes launch failures and interrupted attempts. */
+bool lorawan_api_get_join_bank_preference_exhausted( uint8_t stack_id );
+void lorawan_api_clear_first_join_tx( uint8_t stack_id );
+bool lorawan_api_get_first_join_tx( uint8_t stack_id, uint32_t* frequency_hz, uint8_t* data_rate,
+                                    bool* used_preference );
+#endif
+
 /**
  * @brief Set datarate strategy
  * @remark The current implementation support 4 different dataRate Strategy :
@@ -411,6 +449,12 @@ uint16_t lorawan_api_devnonce_get( uint8_t stack_id );
  * @return uint32_t The time before a new join request can be issued
  */
 uint32_t lorawan_api_next_join_time_second_get( uint8_t stack_id );
+
+/**
+ * @brief Get the active application recovery delay limit, or zero when disabled.
+ * This limit includes retry jitter and never shortens the MAC deadline.
+ */
+uint32_t lorawan_api_join_retry_max_delay_seconds_get( uint8_t stack_id, uint32_t current_time_s );
 
 /**
  * @brief Is duty-cycle supported by the region

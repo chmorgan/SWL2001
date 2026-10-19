@@ -1,0 +1,371 @@
+US915 first-uplink panic after a DR4 join and a 125-kHz-only CFList
+================================================================
+
+Captured naturally on 2026-10-15 at 22:28:29 EDT (2026-10-16 02:28:29 UTC).
+Third fresh BLE reset in this capture batch; the network was a third-party
+network with no test-side gateway or server configuration changes.
+
+Unfixed SWL2001 revision: 33870e4ff46b0117a47e60d2ebba8e8e25ba2ce2
+ESP32 HAL wrapper revision: 0714774590e0a522e48399b9f33ade1642c3f470
+Firmware ELF SHA256: 987cde3a8aaec13adb3d4315ca6a29c1cfc5db5897e8ab9d5e0d3beaf4c58550
+Saved-bank preference and join control were disabled. Existing modem tracing
+and failure diagnostics were enabled. A HAL logging change routed task-context
+radio traces through the ESP logging hook into the existing Wi-Fi RAM log.
+
+This extract contains the radio sequence, complete no-channel diagnostic, and
+stored panic event. Device keys, unrelated application logs, and addresses of
+local services have been omitted. Fragment order is preserved.
+
+Observed failure
+----------------
+The eighteenth completed JoinRequest used DR4/SF8/BW500 at 904600000 Hz.
+JOINED was reported at 277753 ms; the panic followed at 277873 ms (120 ms later).
+JoinAccept applied CFList 00 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 01,
+enabling only 125-kHz channels 8-15 and disabling every 500-kHz channel.
+The retained ADR rate and selected first-uplink rate were still DR4, although
+the applied mask supported only DR0-DR3. The selector exhausted 224 trials
+and fell back to DR4. No channel was both enabled and DR4-compatible.
+No LinkADR command had been applied.
+
+Two DR0 requests on the eventually enabled bank (904700000 and 903900000 Hz)
+completed and were followed by JOINFAIL. These device logs do not establish
+why the network did not complete those joins.
+
+Host regression before the fix
+------------------------------
+The [LoRaWANCapturedPanic] host test drives the actual JoinAccept completion
+and first-uplink channel selection using the captured join DR/frequency and
+CFList. The unfixed run reproduced retained DR4, selected DR4, zero eligible
+channels, region_us_915_get_next_channel panic, and the 224-trial fallback.
+
+Radio sequence
+--------------
+The time in each "Tx LoRa at" line is the scheduled target, not a measured
+RF start timestamp. Each following TX DONE confirms radio completion.
+The final transmission below is the beginning of modem recovery after panic.
+
+  Tx  LoRa at 8928 ms: freq:902900000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 0, toa = 371
+  *  TX DONE
+I (15363) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 28650 ms: freq:904700000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 1, toa = 371
+  *  TX DONE
+I (35083) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 47750 ms: freq:905700000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 2, toa = 371
+  *  TX DONE
+I (54183) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 63958 ms: freq:907100000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 3, toa = 371
+  *  TX DONE
+I (70393) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 76481 ms: freq:908900000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 4, toa = 371
+  *  TX DONE
+I (82913) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 93588 ms: freq:911700000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 5, toa = 371
+  *  TX DONE
+I (100023) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 108450 ms: freq:912700000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 6, toa = 371
+  *  TX DONE
+I (114883) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 123027 ms: freq:913500000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 7, toa = 371
+  *  TX DONE
+I (129463) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 140417 ms: freq:903000000, SF8, BW500, len 23 bytes 22 dBm, fcnt_up 8, toa = 29
+  *  TX DONE
+I (146503) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 149912 ms: freq:902700000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 9, toa = 371
+  *  TX DONE
+I (156343) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 163040 ms: freq:903900000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 10, toa = 371
+  *  TX DONE
+I (169473) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 179136 ms: freq:906900000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 11, toa = 371
+  *  TX DONE
+I (185573) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 194788 ms: freq:907700000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 12, toa = 371
+  *  TX DONE
+I (201273) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 209930 ms: freq:909900000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 13, toa = 371
+  *  TX DONE
+I (216363) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 226188 ms: freq:910500000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 14, toa = 371
+  *  TX DONE
+I (232623) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 244538 ms: freq:912900000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 15, toa = 371
+  *  TX DONE
+I (250973) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 259013 ms: freq:914900000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 16, toa = 371
+  *  TX DONE
+I (265443) LoRaWAN: Event: JOINFAIL
+  Tx  LoRa at 272617 ms: freq:904600000, SF8, BW500, len 23 bytes 22 dBm, fcnt_up 17, toa = 29
+  *  TX DONE
+I (277753) LoRaWAN: Event: JOINED
+E (277873) smtc_modem_hal: crash_string region_us_915_get_next_channel:505 NO CHANNELS AVAILABLE
+E (277873) smtc_modem_hal: :478 Modem panic: region_us_915_get_next_channel:505 NO CHANNELS AVAILABLE
+E (277873) LoRaWAN: panic occurred, exiting processing loop
+I (277883) EMVSystem: LorawanStackPanic region_us_915_get_next_channel():505
+  Tx  LoRa at 282037 ms: freq:902700000, SF10, BW125, len 23 bytes 22 dBm, fcnt_up 0, toa = 371
+  *  TX DONE
+
+Complete diagnostic dump
+------------------------
+LORAWAN_FAILURE_DIAGNOSTICS region=US915
+
+ERROR: TX data rate: 4
+
+ERROR: first_ch_mask_received: 3
+
+ERROR: tx_channel_idx: 65
+
+ERROR: number_of_channel_bank: 9
+
+ERROR: mask_source=3 (0=unknown 1=default 2=post_join 3=cflist 4=link_adr 5=other) cflist_mask_applied=1
+
+ERROR: last_dr_selection valid=1 input_adr_dr=4 output_dr=4 strategy_before=0 strategy_after=0 trials=224 fallback=1 supported_dr_mask=0x000F
+
+ERROR: unwrapped_channel_mask (pending):
+
+ERROR:  0:0x00
+
+ERROR:  1:0xFF
+
+ERROR:  2:0x00
+
+ERROR:  3:0x00
+
+ERROR:  4:0x00
+
+ERROR:  5:0x00
+
+ERROR:  6:0x00
+
+ERROR:  7:0x00
+
+ERROR:  8:0x00
+
+ERROR:
+
+ERROR: snapshot_channel_tx_mask:
+
+ERROR:  0:0x00
+
+ERROR:  1:0xFF
+
+ERROR:  2:0x00
+
+ERROR:  3:0x00
+
+ERROR:  4:0x00
+
+ERROR:  5:0x00
+
+ERROR:  6:0x00
+
+ERROR:  7:0x00
+
+ERROR:  8:0x00
+
+ERROR:
+
+ERROR: channel_index_enabled:
+
+ERROR:  0:0x00
+
+ERROR:  1:0xFF
+
+ERROR:  2:0x00
+
+ERROR:  3:0x00
+
+ERROR:  4:0x00
+
+ERROR:  5:0x00
+
+ERROR:  6:0x00
+
+ERROR:  7:0x00
+
+ERROR:  8:0x00
+
+ERROR:
+
+ERROR: ch=0 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=902300000 rx1_freq=923300000
+
+ERROR: ch=1 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=902500000 rx1_freq=923900000
+
+ERROR: ch=2 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=902700000 rx1_freq=924500000
+
+ERROR: ch=3 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=902900000 rx1_freq=925100000
+
+ERROR: ch=4 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=903100000 rx1_freq=925700000
+
+ERROR: ch=5 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=903300000 rx1_freq=926300000
+
+ERROR: ch=6 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=903500000 rx1_freq=926900000
+
+ERROR: ch=7 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=903700000 rx1_freq=927500000
+
+ERROR: ch=8 snapshot_elig=1 enabled=1 dr_compat=0 dr_mask=0x000F tx_freq=903900000 rx1_freq=923300000
+
+ERROR: ch=9 snapshot_elig=1 enabled=1 dr_compat=0 dr_mask=0x000F tx_freq=904100000 rx1_freq=923900000
+
+ERROR: ch=10 snapshot_elig=1 enabled=1 dr_compat=0 dr_mask=0x000F tx_freq=904300000 rx1_freq=924500000
+
+ERROR: ch=11 snapshot_elig=1 enabled=1 dr_compat=0 dr_mask=0x000F tx_freq=904500000 rx1_freq=925100000
+
+ERROR: ch=12 snapshot_elig=1 enabled=1 dr_compat=0 dr_mask=0x000F tx_freq=904700000 rx1_freq=925700000
+
+ERROR: ch=13 snapshot_elig=1 enabled=1 dr_compat=0 dr_mask=0x000F tx_freq=904900000 rx1_freq=926300000
+
+ERROR: ch=14 snapshot_elig=1 enabled=1 dr_compat=0 dr_mask=0x000F tx_freq=905100000 rx1_freq=926900000
+
+ERROR: ch=15 snapshot_elig=1 enabled=1 dr_compat=0 dr_mask=0x000F tx_freq=905300000 rx1_freq=927500000
+
+ERROR: ch=16 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=905500000 rx1_freq=923300000
+
+ERROR: ch=17 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=905700000 rx1_freq=923900000
+
+ERROR: ch=18 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=905900000 rx1_freq=924500000
+
+ERROR: ch=19 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=906100000 rx1_freq=925100000
+
+ERROR: ch=20 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=906300000 rx1_freq=925700000
+
+ERROR: ch=21 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=906500000 rx1_freq=926300000
+
+ERROR: ch=22 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=906700000 rx1_freq=926900000
+
+ERROR: ch=23 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=906900000 rx1_freq=927500000
+
+ERROR: ch=24 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=907100000 rx1_freq=923300000
+
+ERROR: ch=25 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=907300000 rx1_freq=923900000
+
+ERROR: ch=26 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=907500000 rx1_freq=924500000
+
+ERROR: ch=27 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=907700000 rx1_freq=925100000
+
+ERROR: ch=28 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=907900000 rx1_freq=925700000
+
+ERROR: ch=29 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=908100000 rx1_freq=926300000
+
+ERROR: ch=30 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=908300000 rx1_freq=926900000
+
+ERROR: ch=31 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=908500000 rx1_freq=927500000
+
+ERROR: ch=32 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=908700000 rx1_freq=923300000
+
+ERROR: ch=33 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=908900000 rx1_freq=923900000
+
+ERROR: ch=34 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=909100000 rx1_freq=924500000
+
+ERROR: ch=35 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=909300000 rx1_freq=925100000
+
+ERROR: ch=36 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=909500000 rx1_freq=925700000
+
+ERROR: ch=37 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=909700000 rx1_freq=926300000
+
+ERROR: ch=38 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=909900000 rx1_freq=926900000
+
+ERROR: ch=39 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=910100000 rx1_freq=927500000
+
+ERROR: ch=40 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=910300000 rx1_freq=923300000
+
+ERROR: ch=41 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=910500000 rx1_freq=923900000
+
+ERROR: ch=42 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=910700000 rx1_freq=924500000
+
+ERROR: ch=43 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=910900000 rx1_freq=925100000
+
+ERROR: ch=44 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=911100000 rx1_freq=925700000
+
+ERROR: ch=45 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=911300000 rx1_freq=926300000
+
+ERROR: ch=46 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=911500000 rx1_freq=926900000
+
+ERROR: ch=47 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=911700000 rx1_freq=927500000
+
+ERROR: ch=48 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=911900000 rx1_freq=923300000
+
+ERROR: ch=49 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=912100000 rx1_freq=923900000
+
+ERROR: ch=50 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=912300000 rx1_freq=924500000
+
+ERROR: ch=51 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=912500000 rx1_freq=925100000
+
+ERROR: ch=52 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=912700000 rx1_freq=925700000
+
+ERROR: ch=53 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=912900000 rx1_freq=926300000
+
+ERROR: ch=54 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=913100000 rx1_freq=926900000
+
+ERROR: ch=55 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=913300000 rx1_freq=927500000
+
+ERROR: ch=56 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=913500000 rx1_freq=923300000
+
+ERROR: ch=57 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=913700000 rx1_freq=923900000
+
+ERROR: ch=58 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=913900000 rx1_freq=924500000
+
+ERROR: ch=59 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=914100000 rx1_freq=925100000
+
+ERROR: ch=60 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=914300000 rx1_freq=925700000
+
+ERROR: ch=61 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=914500000 rx1_freq=926300000
+
+ERROR: ch=62 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=914700000 rx1_freq=926900000
+
+ERROR: ch=63 snapshot_elig=0 enabled=0 dr_compat=0 dr_mask=0x000F tx_freq=914900000 rx1_freq=927500000
+
+ERROR: ch=64 snapshot_elig=0 enabled=0 dr_compat=1 dr_mask=0x0070 tx_freq=903000000 rx1_freq=923300000
+
+ERROR: ch=65 snapshot_elig=0 enabled=0 dr_compat=1 dr_mask=0x0070 tx_freq=904600000 rx1_freq=923900000
+
+ERROR: ch=66 snapshot_elig=0 enabled=0 dr_compat=1 dr_mask=0x0070 tx_freq=906200000 rx1_freq=924500000
+
+ERROR: ch=67 snapshot_elig=0 enabled=0 dr_compat=1 dr_mask=0x0070 tx_freq=907800000 rx1_freq=925100000
+
+ERROR: ch=68 snapshot_elig=0 enabled=0 dr_compat=1 dr_mask=0x0070 tx_freq=909400000 rx1_freq=925700000
+
+ERROR: ch=69 snapshot_elig=0 enabled=0 dr_compat=1 dr_mask=0x0070 tx_freq=911000000 rx1_freq=926300000
+
+ERROR: ch=70 snapshot_elig=0 enabled=0 dr_compat=1 dr_mask=0x0070 tx_freq=912600000 rx1_freq=926900000
+
+ERROR: ch=71 snapshot_elig=0 enabled=0 dr_compat=1 dr_mask=0x0070 tx_freq=914200000 rx1_freq=927500000
+
+ERROR: summary: snapshot_enabled=8 enabled_mask=8 dr_compatible=8 fully_eligible=0
+
+E (277873) smtc_modem_hal: crash_string region_us_915_get_next_channel:505 NO CHANNELS AVAILABLE
+E (277873) smtc_modem_hal: :478 Modem panic: region_us_915_get_next_channel:505 NO CHANNELS AVAILABLE
+LORAWAN_FAILURE_DIAGNOSTICS MAC context begin
+stack_id=0 uptime_ms=277870 tx_dr=4 retained_adr_dr=4 strategy=0 adr_enabled=1 join_status=2 mac_state=0 tx_frequency=904600000 fcnt_up=1 fcnt_down=4294967295
+last_processed_join_accept valid=1
+accepted=1 join_dr=4 join_frequency=904600000 cflist_present=1 update_called=1 mask_applied=1
+cflist_update_status=0
+cflist:
+ 00
+ FF
+ 00
+ 00
+ 00
+ 00
+ 00
+ 00
+ 00
+ 00
+ 00
+ 00
+ 00
+ 00
+ 00
+ 01
+last_applied_linkadr valid=0
+LORAWAN_FAILURE_DIAGNOSTICS MAC context end
+
+Stored panic event retrieved over BLE
+------------------------------------
+{
+  "event_name": "LorawanStackPanic",
+  "tv_sec": 1792117709,
+  "tv_usec": 424997,
+  "func": "region_us_915_get_next_channel",
+  "line": 505
+}

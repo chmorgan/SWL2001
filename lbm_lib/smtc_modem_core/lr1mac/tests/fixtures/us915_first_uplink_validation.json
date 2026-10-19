@@ -1,0 +1,456 @@
+{
+  "schema_version": 1,
+  "result": "PASS",
+  "region": "US915",
+  "test_date_local": "2026-10-16",
+  "time_zone": "America/New_York",
+  "scope": "Three independent boots of the recorded pre-bank firmware, containing the first-uplink panic fix.",
+  "final_feature_head_validation": {
+    "status": "pending",
+    "reason": "The feature-head integration has not yet been built or exercised on hardware."
+  },
+  "tested_source": {
+    "root_revision": "8c40fec93ac6e385bb4cb4dc635470f41f6725f9",
+    "wrapper_revision": "0714774590e0a522e48399b9f33ade1642c3f470",
+    "swl2001_fix_revision": "d3d6ad5b0e97158ef4bfcb03442a03fe9489c01c",
+    "dirty_tree": true,
+    "source_sha256": {
+      "firmware/CMakeLists.txt": "a7e8317e82489b045c3b4f2da00faa33132926138b8671a968a9564edbd4e3c3",
+      "firmware/sdkconfig": "7e8041b6719615e7b18379d4cc3206a39047255d40380186fbbb26dca30dd633",
+      "firmware/components/esp32-swl2001/src/smtc_modem_hal/smtc_modem_hal.cpp": "6ea95beb375d6358c2bde5a80bec252467a3ae04c7413f25edd287c746efad81",
+      "firmware/components/esp32-swl2001/SWL2001/lbm_lib/smtc_modem_core/lr1mac/src/lr1mac_core.c": "97ac54c1af35c5a50ed16bb3d2acbc3854fd350527748ecee786e87bce3d0b47",
+      "firmware/components/esp32-swl2001/SWL2001/lbm_lib/smtc_modem_core/lr1mac/src/smtc_real/src/smtc_real.c": "5ee7b413a3365d7c1fe724b4cafe9766c294424f6769624c314eba4a95bc25cf",
+      "firmware/components/esp32-swl2001/SWL2001/lbm_lib/smtc_modem_core/lr1mac/src/smtc_real/src/region_us_915.c": "7960bef3edbfde3f83ecbdf88e33fd4ac4d307285780dffbda9e5ffdf49a90a7"
+    },
+    "source_hashes_verified": 6,
+    "provenance_limit": "Recorded source hashes cover these six files; they are not a full clean-tree build attestation."
+  },
+  "tested_image": {
+    "elf_sha256": "26aacd064d552554582803fe6b152927ebd0ca36c335193c6ab4605330a3c1d3",
+    "firmware_bin_sha256": "c84c4ca3c8cef4ec4d422df6e3ed5415400d391d98938d37aa4fd2ec368a52be",
+    "firmware_bin_bytes": 3055248,
+    "built_by": "user",
+    "image_hashes_verified": true
+  },
+  "tested_configuration": {
+    "region": "US915",
+    "normal_modem_trace": true,
+    "deep_modem_trace": false,
+    "compact_applied_mask_trace": true,
+    "task_context_trace_uses_ram_logger": true,
+    "CONFIG_LORAWAN_FAILURE_DIAGNOSTICS": true,
+    "CONFIG_LORAWAN_JOIN_BANK_PREFERENCE_ENABLED": false,
+    "CONFIG_LORAWAN_JOIN_CONTROL_ENABLED": false,
+    "join_tx_trace": false,
+    "CONFIG_FREERTOS_ISR_STACKSIZE": 2096,
+    "CONFIG_ESP_MAIN_TASK_STACK_SIZE": 4604,
+    "sdkconfig_sha256": "7e8041b6719615e7b18379d4cc3206a39047255d40380186fbbb26dca30dd633",
+    "natural_joining_and_native_mac_backoff": true
+  },
+  "fixtures": {
+    "failure": {
+      "file": "us915_first_uplink_panic.log",
+      "sha256": "e6b0390d444bf55009973758548efaca1f88e61fb61a5248e9cdd1d14a624130"
+    },
+    "fixed": {
+      "file": "us915_first_uplink_fixed.log",
+      "sha256": "1b765692bc91be0bbf2cff9474f6c81f6a2ba70c3014c2a538f39ad67fef1af3",
+      "radio_records": 21,
+      "extraction": "Only exact allowlisted record bodies are retained. Other records and envelopes are omitted."
+    }
+  },
+  "acceptance_gates": [
+    "Three distinct boot identities; firmware identity matches the pinned ELF before and after every smoke run.",
+    "The last completed 23-byte transmission before JOINED is DR4/SF8/BW500 at 904600000 Hz.",
+    "One strict physical compact mask record follows update join procedure and precedes JOINED.",
+    "The applied mask enables only 125 kHz channels 8-15 and no 500 kHz channel.",
+    "The first transmission after JOINED is DR3/SF7/BW125 on an enabled channel and reaches TX DONE.",
+    "Passive parsing of each complete accepted current-boot snapshot finds zero panic and modem-recovery markers.",
+    "The requested reboot is confirmed, and the post-capture observe run preserves the boot identity."
+  ],
+  "totals": {
+    "accepted_boots": 3,
+    "accepted_cases": 3,
+    "verified_smoke_runs": 6,
+    "radio_records": 21,
+    "panic_count": 0,
+    "modem_recovery_count": 0,
+    "unexpected_cpu_reset_count": 0
+  },
+  "cases": [
+    {
+      "attempt": 2,
+      "completed_at_utc": "2026-10-17T01:57:23.486550+00:00",
+      "completed_at_local": "2026-10-16T21:57:23.486550-04:00",
+      "boot_id": "3daa822d82f4c244",
+      "expected_elf_sha256": "26aacd064d552554582803fe6b152927ebd0ca36c335193c6ab4605330a3c1d3",
+      "smoke_runs": [
+        {
+          "run_id": "run-fa0795ce6ad06a02",
+          "capture_mode": "reboot",
+          "status": "passed",
+          "report_sha256": "c554728b4b4684e7a871c0499b410dcb3fbcd6e3c98b202e3d2a549c0e66d800"
+        },
+        {
+          "run_id": "run-98af8f5846b9bac7",
+          "capture_mode": "observe",
+          "status": "passed",
+          "report_sha256": "11a10639dc9454a26b7c519ad448d1ca04b68ff2de3d19dc74c36932bbec40ca"
+        }
+      ],
+      "raw_snapshot": {
+        "sha256": "e95f99d38a5bd675ddc5cd261ce0f8ffd4bf1767c14ad2d81d229ad161357ac7",
+        "uncompressed_bytes": 109804,
+        "byte_offsets": "zero-based, end-exclusive",
+        "line_numbers": "one-based",
+        "records": [
+          {
+            "record": "join_tx",
+            "fixture_line": 7,
+            "raw_byte_start": 96026,
+            "raw_byte_end": 96089,
+            "raw_line_start": 1969,
+            "raw_line_end": 1969
+          },
+          {
+            "record": "join_txdone",
+            "fixture_line": 8,
+            "raw_byte_start": 96201,
+            "raw_byte_end": 96208,
+            "raw_line_start": 1972,
+            "raw_line_end": 1972
+          },
+          {
+            "record": "apply_join_mask",
+            "fixture_line": 9,
+            "raw_byte_start": 98545,
+            "raw_byte_end": 98566,
+            "raw_line_start": 2009,
+            "raw_line_end": 2009
+          },
+          {
+            "record": "applied_mask",
+            "fixture_line": 10,
+            "raw_byte_start": 98567,
+            "raw_byte_end": 98621,
+            "raw_line_start": 2010,
+            "raw_line_end": 2010
+          },
+          {
+            "record": "joined",
+            "fixture_line": 11,
+            "raw_byte_start": 98761,
+            "raw_byte_end": 98774,
+            "raw_line_start": 2017,
+            "raw_line_end": 2017
+          },
+          {
+            "record": "first_uplink_tx",
+            "fixture_line": 12,
+            "raw_byte_start": 100236,
+            "raw_byte_end": 100299,
+            "raw_line_start": 2043,
+            "raw_line_end": 2043
+          },
+          {
+            "record": "first_uplink_txdone",
+            "fixture_line": 13,
+            "raw_byte_start": 100663,
+            "raw_byte_end": 100670,
+            "raw_line_start": 2050,
+            "raw_line_end": 2050
+          }
+        ]
+      },
+      "join": {
+        "dr": 4,
+        "frequency_hz": 904600000,
+        "tx_target_ms": 284795,
+        "joined_uptime_ms": 289864
+      },
+      "applied_mask": {
+        "mask125": "00ff000000000000",
+        "mask500": "00",
+        "enabled_125_khz_channels": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "enabled_500_khz_channels": []
+      },
+      "first_uplink": {
+        "dr": 3,
+        "frequency_hz": 904900000,
+        "tx_target_ms": 295747,
+        "txdone": true
+      },
+      "acceptance": {
+        "dr4_join_at_captured_frequency": true,
+        "strict_applied_mask_record": true,
+        "first_post_join_tx_uses_supported_dr3_channel": true,
+        "first_uplink_txdone": true,
+        "boot_and_firmware_identity_verified_after_capture": true,
+        "source_replay_matches_saved_proof": true,
+        "panic_count": 0,
+        "modem_recovery_count": 0,
+        "unexpected_cpu_reset_count": 0
+      }
+    },
+    {
+      "attempt": 3,
+      "completed_at_utc": "2026-10-17T02:03:56.854962+00:00",
+      "completed_at_local": "2026-10-16T22:03:56.854962-04:00",
+      "boot_id": "912fbf13220d445d",
+      "expected_elf_sha256": "26aacd064d552554582803fe6b152927ebd0ca36c335193c6ab4605330a3c1d3",
+      "smoke_runs": [
+        {
+          "run_id": "run-62527c91c1b6deae",
+          "capture_mode": "reboot",
+          "status": "passed",
+          "report_sha256": "366fe87c16257a8bcd4d985d43e7529fb899d4c38e25c110d3477fc69c93dee3"
+        },
+        {
+          "run_id": "run-3f3251463a537e67",
+          "capture_mode": "observe",
+          "status": "passed",
+          "report_sha256": "3d2da66f8751eee3b4391b8ca41d30339dc4ff4fb0dba23b475027f443a2bbcc"
+        }
+      ],
+      "raw_snapshot": {
+        "sha256": "e155644b6763ed8741d7099567a639be6a966c88d97841100cc74a6391c5f0b4",
+        "uncompressed_bytes": 238100,
+        "byte_offsets": "zero-based, end-exclusive",
+        "line_numbers": "one-based",
+        "records": [
+          {
+            "record": "join_tx",
+            "fixture_line": 16,
+            "raw_byte_start": 226133,
+            "raw_byte_end": 226196,
+            "raw_line_start": 4545,
+            "raw_line_end": 4545
+          },
+          {
+            "record": "join_txdone",
+            "fixture_line": 17,
+            "raw_byte_start": 227591,
+            "raw_byte_end": 227598,
+            "raw_line_start": 4568,
+            "raw_line_end": 4568
+          },
+          {
+            "record": "apply_join_mask",
+            "fixture_line": 18,
+            "raw_byte_start": 228025,
+            "raw_byte_end": 228046,
+            "raw_line_start": 4578,
+            "raw_line_end": 4578
+          },
+          {
+            "record": "applied_mask",
+            "fixture_line": 19,
+            "raw_byte_start": 228047,
+            "raw_byte_end": 228101,
+            "raw_line_start": 4579,
+            "raw_line_end": 4579
+          },
+          {
+            "record": "joined",
+            "fixture_line": 20,
+            "raw_byte_start": 228242,
+            "raw_byte_end": 228255,
+            "raw_line_start": 4586,
+            "raw_line_end": 4586
+          },
+          {
+            "record": "first_uplink_tx",
+            "fixture_line": 21,
+            "raw_byte_start": 229717,
+            "raw_byte_end": 229780,
+            "raw_line_start": 4612,
+            "raw_line_end": 4612
+          },
+          {
+            "record": "first_uplink_txdone",
+            "fixture_line": 22,
+            "raw_byte_start": 230144,
+            "raw_byte_end": 230151,
+            "raw_line_start": 4619,
+            "raw_line_end": 4619
+          }
+        ]
+      },
+      "join": {
+        "dr": 4,
+        "frequency_hz": 904600000,
+        "tx_target_ms": 299137,
+        "joined_uptime_ms": 304214
+      },
+      "applied_mask": {
+        "mask125": "00ff000000000000",
+        "mask500": "00",
+        "enabled_125_khz_channels": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "enabled_500_khz_channels": []
+      },
+      "first_uplink": {
+        "dr": 3,
+        "frequency_hz": 904700000,
+        "tx_target_ms": 305030,
+        "txdone": true
+      },
+      "acceptance": {
+        "dr4_join_at_captured_frequency": true,
+        "strict_applied_mask_record": true,
+        "first_post_join_tx_uses_supported_dr3_channel": true,
+        "first_uplink_txdone": true,
+        "boot_and_firmware_identity_verified_after_capture": true,
+        "source_replay_matches_saved_proof": true,
+        "panic_count": 0,
+        "modem_recovery_count": 0,
+        "unexpected_cpu_reset_count": 0
+      }
+    },
+    {
+      "attempt": 4,
+      "completed_at_utc": "2026-10-17T02:10:12.628481+00:00",
+      "completed_at_local": "2026-10-16T22:10:12.628481-04:00",
+      "boot_id": "f093f8b5fd295c1f",
+      "expected_elf_sha256": "26aacd064d552554582803fe6b152927ebd0ca36c335193c6ab4605330a3c1d3",
+      "smoke_runs": [
+        {
+          "run_id": "run-606aa82f3f9cb77f",
+          "capture_mode": "reboot",
+          "status": "passed",
+          "report_sha256": "a42bb3bb8f21b8ca13f80aecfe91963d0f71a5e3ece7b53548eea13caf74c13d"
+        },
+        {
+          "run_id": "run-d1bcdacb1bae0e76",
+          "capture_mode": "observe",
+          "status": "passed",
+          "report_sha256": "df064f53be478c2bf29cd8cc2be15b7783a34a9b2682a4162917d48ed20d6ff3"
+        }
+      ],
+      "raw_snapshot": {
+        "sha256": "1fc775d428a41f04e7ee8f6c08b0db8b352ddcc2d074a309e29ee8e745a1d9a1",
+        "uncompressed_bytes": 359591,
+        "byte_offsets": "zero-based, end-exclusive",
+        "line_numbers": "one-based",
+        "records": [
+          {
+            "record": "join_tx",
+            "fixture_line": 25,
+            "raw_byte_start": 343967,
+            "raw_byte_end": 344030,
+            "raw_line_start": 6935,
+            "raw_line_end": 6935
+          },
+          {
+            "record": "join_txdone",
+            "fixture_line": 26,
+            "raw_byte_start": 345454,
+            "raw_byte_end": 345461,
+            "raw_line_start": 6958,
+            "raw_line_end": 6958
+          },
+          {
+            "record": "apply_join_mask",
+            "fixture_line": 27,
+            "raw_byte_start": 347009,
+            "raw_byte_end": 347030,
+            "raw_line_start": 6985,
+            "raw_line_end": 6985
+          },
+          {
+            "record": "applied_mask",
+            "fixture_line": 28,
+            "raw_byte_start": 347031,
+            "raw_byte_end": 347085,
+            "raw_line_start": 6986,
+            "raw_line_end": 6986
+          },
+          {
+            "record": "joined",
+            "fixture_line": 29,
+            "raw_byte_start": 347226,
+            "raw_byte_end": 347239,
+            "raw_line_start": 6993,
+            "raw_line_end": 6993
+          },
+          {
+            "record": "first_uplink_tx",
+            "fixture_line": 30,
+            "raw_byte_start": 348701,
+            "raw_byte_end": 348764,
+            "raw_line_start": 7019,
+            "raw_line_end": 7019
+          },
+          {
+            "record": "first_uplink_txdone",
+            "fixture_line": 31,
+            "raw_byte_start": 349229,
+            "raw_byte_end": 349236,
+            "raw_line_start": 7028,
+            "raw_line_end": 7028
+          }
+        ]
+      },
+      "join": {
+        "dr": 4,
+        "frequency_hz": 904600000,
+        "tx_target_ms": 264996,
+        "joined_uptime_ms": 270074
+      },
+      "applied_mask": {
+        "mask125": "00ff000000000000",
+        "mask500": "00",
+        "enabled_125_khz_channels": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "enabled_500_khz_channels": []
+      },
+      "first_uplink": {
+        "dr": 3,
+        "frequency_hz": 903900000,
+        "tx_target_ms": 271798,
+        "txdone": true
+      },
+      "acceptance": {
+        "dr4_join_at_captured_frequency": true,
+        "strict_applied_mask_record": true,
+        "first_post_join_tx_uses_supported_dr3_channel": true,
+        "first_uplink_txdone": true,
+        "boot_and_firmware_identity_verified_after_capture": true,
+        "source_replay_matches_saved_proof": true,
+        "panic_count": 0,
+        "modem_recovery_count": 0,
+        "unexpected_cpu_reset_count": 0
+      }
+    }
+  ],
+  "limitations": [
+    "Passing traces establish the applied channel mask, not the raw JoinAccept CFList bytes.",
+    "No full raw device logs, BLE reports, payload bytes or firmware binaries are committed.",
+    "These hardware results apply to the recorded pre-bank configuration; final feature-head integration validation is separate."
+  ]
+}
